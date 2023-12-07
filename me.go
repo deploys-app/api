@@ -35,8 +35,11 @@ type MeAuthorized struct {
 type MeAuthorizedResult struct {
 	Authorized bool `json:"authorized" yaml:"authorized"`
 	Project    struct {
-		ID      string `json:"id" yaml:"id"`
-		Project string `json:"project" yaml:"project"`
+		ID             string `json:"id" yaml:"id"`
+		Project        string `json:"project" yaml:"project"`
+		BillingAccount struct {
+			Active bool `json:"active" yaml:"active"`
+		} `json:"billingAccount" yaml:"billingAccount"`
 	} `json:"project" yaml:"project"`
 }
 
