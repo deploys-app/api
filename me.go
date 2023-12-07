@@ -27,7 +27,7 @@ func (m *MeItem) Table() [][]string {
 }
 
 type MeAuthorized struct {
-	ProjectID   int64    `json:"projectId" yaml:"projectId"`
+	ProjectID   ID       `json:"projectId" yaml:"projectId"`
 	Project     string   `json:"project" yaml:"project"`
 	Permissions []string `json:"permissions" yaml:"permissions"`
 }
