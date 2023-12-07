@@ -69,6 +69,8 @@ var permissions = []string{
 	"email.*",
 	"email.send",
 	"email.list",
+	"dropbox.*",
+	"dropbox.upload",
 }
 
 func Permissions() []string {
