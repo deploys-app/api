@@ -43,8 +43,9 @@ func (id ID) MarshalJSON() ([]byte, error) {
 }
 
 func (id *ID) UnmarshalJSON(b []byte) error {
+	*id = 0
+
 	if len(b) == 0 {
-		*id = 0
 		return nil
 	}
 
@@ -53,6 +54,9 @@ func (id *ID) UnmarshalJSON(b []byte) error {
 		err := json.Unmarshal(b, &s)
 		if err != nil {
 			return err
+		}
+		if s == "" {
+			return nil
 		}
 		i, err := strconv.ParseInt(s, 10, 64)
 		if err != nil {
