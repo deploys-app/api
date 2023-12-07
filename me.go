@@ -33,7 +33,11 @@ type MeAuthorized struct {
 }
 
 type MeAuthorizedResult struct {
-	Authorized bool `json:"authorized"`
+	Authorized bool `json:"authorized" yaml:"authorized"`
+	Project    struct {
+		ID      string `json:"id" yaml:"id"`
+		Project string `json:"project" yaml:"project"`
+	} `json:"project" yaml:"project"`
 }
 
 func (m *MeAuthorizedResult) Table() [][]string {
