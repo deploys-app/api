@@ -71,6 +71,9 @@ var permissions = []string{
 	"email.list",
 	"dropbox.*",
 	"dropbox.upload",
+	"registry.*",
+	"registry.push",
+	"registry.pull",
 }
 
 func Permissions() []string {
