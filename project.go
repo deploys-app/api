@@ -63,7 +63,7 @@ func (m *ProjectUpdate) Valid() error {
 
 	v := validator.New()
 
-	v.Must(m.Project != "", "project rquired")
+	v.Must(m.Project != "", "project required")
 
 	if m.Name != nil {
 		*m.Name = strings.TrimSpace(*m.Name)
