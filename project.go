@@ -23,7 +23,7 @@ type Project interface {
 type ProjectCreate struct {
 	SID            string `json:"sid" yaml:"sid"`
 	Name           string `json:"name" yaml:"name"`
-	BillingAccount string `json:"billingAccount" yaml:"billingAccount"`
+	BillingAccount int64  `json:"billingAccount,string" yaml:"billingAccount"`
 }
 
 var (
@@ -47,7 +47,7 @@ func (m *ProjectCreate) Valid() error {
 	cnt := utf8.RuneCountInString(m.Name)
 	v.Must(cnt >= 4 && cnt <= 64, "name must have length between 4-64 characters")
 
-	v.Must(m.BillingAccount != "", "billing account required")
+	v.Must(m.BillingAccount > 0, "billing account required")
 
 	return WrapValidate(v)
 }
@@ -55,7 +55,7 @@ func (m *ProjectCreate) Valid() error {
 type ProjectUpdate struct {
 	Project        string  `json:"project" yaml:"project"`
 	Name           *string `json:"name" yaml:"name"`
-	BillingAccount *string `json:"billingAccount" yaml:"billingAccount"`
+	BillingAccount *int64  `json:"billingAccount,string" yaml:"billingAccount"`
 }
 
 func (m *ProjectUpdate) Valid() error {
@@ -73,7 +73,7 @@ func (m *ProjectUpdate) Valid() error {
 	}
 
 	if m.BillingAccount != nil {
-		v.Must(*m.BillingAccount != "", "billing account invalid")
+		v.Must(*m.BillingAccount > 0, "billing account invalid")
 	}
 
 	return WrapValidate(v)
@@ -87,7 +87,7 @@ type ProjectItem struct {
 	ID             int64         `json:"id,string" yaml:"id"`
 	Project        string        `json:"project" yaml:"project"`
 	Name           string        `json:"name" yaml:"name"`
-	BillingAccount string        `json:"billingAccount" yaml:"billingAccount"`
+	BillingAccount int64         `json:"billingAccount,string" yaml:"billingAccount"`
 	Quota          ProjectQuota  `json:"quota" yaml:"quota"`
 	Config         ProjectConfig `json:"config" yaml:"config"`
 	CreatedAt      time.Time     `json:"createdAt" yaml:"createdAt"`
