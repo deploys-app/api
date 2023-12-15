@@ -5,7 +5,6 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/asaskevich/govalidator"
 	"github.com/moonrhythm/validator"
 )
 
@@ -50,7 +49,7 @@ func (m *BillingCreate) Valid() error {
 }
 
 type BillingCreateResult struct {
-	ID string `json:"id" yaml:"id"`
+	ID int64 `json:"id,string" yaml:"id"`
 }
 
 type BillingListResult struct {
@@ -58,32 +57,31 @@ type BillingListResult struct {
 }
 
 type BillingDelete struct {
-	ID string `json:"id" yaml:"id"`
+	ID int64 `json:"id,string" yaml:"id"`
 }
 
 func (m *BillingDelete) Valid() error {
 	v := validator.New()
 
-	v.Must(m.ID != "", "id required")
+	v.Must(m.ID > 0, "id required")
 
 	return WrapValidate(v)
 }
 
 type BillingGet struct {
-	ID string `json:"id" yaml:"id"`
+	ID int64 `json:"id,string" yaml:"id"`
 }
 
 func (m *BillingGet) Valid() error {
 	v := validator.New()
 
-	v.Must(m.ID != "", "id required")
-	v.Must(govalidator.IsNumeric(m.ID), "id must contain only number")
+	v.Must(m.ID > 0, "id required")
 
 	return WrapValidate(v)
 }
 
 type BillingItem struct {
-	ID         string `json:"id" yaml:"id"`
+	ID         int64  `json:"id,string" yaml:"id"`
 	Name       string `json:"name" yaml:"name"`
 	TaxID      string `json:"taxId" yaml:"taxId"`
 	TaxName    string `json:"taxName" yaml:"taxName"`
@@ -92,7 +90,7 @@ type BillingItem struct {
 }
 
 type BillingUpdate struct {
-	ID         string `json:"id" yaml:"id"`
+	ID         int64  `json:"id,string" yaml:"id"`
 	Name       string `json:"name" yaml:"name"`
 	TaxID      string `json:"taxId" yaml:"taxId"`
 	TaxName    string `json:"taxName" yaml:"taxName"`
@@ -122,7 +120,7 @@ func (m *BillingUpdate) Valid() error {
 }
 
 type BillingReport struct {
-	ID          string   `json:"id" yaml:"id"`
+	ID          int64    `json:"id,string" yaml:"id"`
 	Range       string   `json:"range" yaml:"range"`
 	ProjectSIDs []string `json:"projectSids" yaml:"projectSids"`
 }

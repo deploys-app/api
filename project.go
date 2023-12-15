@@ -84,7 +84,7 @@ type ProjectGet struct {
 }
 
 type ProjectItem struct {
-	ID             string        `json:"id" yaml:"id"`
+	ID             int64         `json:"id,string" yaml:"id"`
 	Project        string        `json:"project" yaml:"project"`
 	Name           string        `json:"name" yaml:"name"`
 	BillingAccount string        `json:"billingAccount" yaml:"billingAccount"`
