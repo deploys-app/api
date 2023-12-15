@@ -77,14 +77,14 @@ func (m *ServiceAccountUpdate) Valid() error {
 
 type ServiceAccountCreateKey struct {
 	Project string `json:"project" yaml:"project"`
-	ID      int64  `json:"id,string" yaml:"id"`
+	ID      string `json:"id" yaml:"id"` // TODO: sid
 }
 
 func (m *ServiceAccountCreateKey) Valid() error {
 	v := validator.New()
 
 	v.Must(m.Project != "", "project required")
-	v.Must(m.ID > 0, "service account id required")
+	v.Must(m.ID != "", "service account id required")
 	return WrapValidate(v)
 }
 
@@ -131,14 +131,14 @@ func (m *ServiceAccountListResult) Table() [][]string {
 
 type ServiceAccountGet struct {
 	Project string `json:"project" yaml:"project"`
-	ID      int64  `json:"id,string" yaml:"id"`
+	ID      string `json:"id" yaml:"id"` // TODO: sid
 }
 
 func (m *ServiceAccountGet) Valid() error {
 	v := validator.New()
 
 	v.Must(m.Project != "", "project required")
-	v.Must(m.ID > 0, "service account id required")
+	v.Must(m.ID != "", "service account id required")
 
 	return WrapValidate(v)
 }
@@ -175,7 +175,7 @@ type ServiceAccountKey struct {
 
 type ServiceAccountDeleteKey struct {
 	Project string `json:"project" yaml:"project"`
-	ID      int64  `json:"id,string" yaml:"id"`
+	ID      string `json:"id" yaml:"id"` // TODO: sid
 	Secret  string `json:"secret" yaml:"secret"`
 }
 
@@ -183,7 +183,7 @@ func (m *ServiceAccountDeleteKey) Valid() error {
 	v := validator.New()
 
 	v.Must(m.Project != "", "project required")
-	v.Must(m.ID > 0, "service account id required")
+	v.Must(m.ID != "", "service account id required")
 	v.Must(m.Secret != "", "secret required")
 
 	return WrapValidate(v)
@@ -191,14 +191,14 @@ func (m *ServiceAccountDeleteKey) Valid() error {
 
 type ServiceAccountDelete struct {
 	Project string `json:"project" yaml:"project"`
-	ID      int64  `json:"id,string" yaml:"id"`
+	ID      string `json:"id" yaml:"id"` // TODO: sid
 }
 
 func (m *ServiceAccountDelete) Valid() error {
 	v := validator.New()
 
 	v.Must(m.Project != "", "project required")
-	v.Must(m.ID > 0, "service account id required")
+	v.Must(m.ID != "", "service account id required")
 
 	return WrapValidate(v)
 }
