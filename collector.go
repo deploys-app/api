@@ -20,12 +20,12 @@ type CollectorLocationResult struct {
 }
 
 type CollectorProject struct {
-	ID int64 `json:"id" yaml:"id"`
+	ID int64 `json:"id,string" yaml:"id"`
 }
 
 type CollectorSetProjectUsage struct {
 	Location  string                           `json:"location" yaml:"location"`
-	ProjectID int64                            `json:"projectId" yaml:"projectId"`
+	ProjectID int64                            `json:"projectId,string" yaml:"projectId"`
 	At        string                           `json:"at" yaml:"at"`
 	Resources []*CollectorProjectUsageResource `json:"resources" yaml:"resources"`
 }
@@ -41,7 +41,7 @@ type CollectorSetDeploymentUsage struct {
 }
 
 type CollectorDeploymentUsageItem struct {
-	ProjectID      int64   `json:"projectId" yaml:"projectId"`
+	ProjectID      int64   `json:"projectId,string" yaml:"projectId"`
 	DeploymentName string  `json:"deploymentName" yaml:"deploymentName"`
 	Pod            string  `json:"pod" yaml:"pod"`
 	Name           string  `json:"name" yaml:"name"`
@@ -55,7 +55,7 @@ type CollectorSetDiskUsage struct {
 }
 
 type CollectorDiskUsageItem struct {
-	ProjectID int64   `json:"projectId" yaml:"projectId"`
+	ProjectID int64   `json:"projectId,string" yaml:"projectId"`
 	DiskName  string  `json:"diskName" yaml:"diskName"`
 	Name      string  `json:"name" yaml:"name"`
 	Value     float64 `json:"value" yaml:"value"`
