@@ -193,7 +193,7 @@ var validDeploymentProtocol = func() map[DeploymentProtocol]bool {
 }()
 
 type ResourceItem struct {
-	// CPU    string `json:"cpu" yaml:"cpu"`
+	CPU    string `json:"cpu" yaml:"cpu"`
 	Memory string `json:"memory" yaml:"memory"`
 }
 
