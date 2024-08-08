@@ -80,6 +80,7 @@ type DeployerCommandDeploymentDeploy struct {
 type DeployerCommandDeploymentDeployBillingConfig struct {
 	Pool      string `json:"pool"`
 	SharePool bool   `json:"sharePool"`
+	ForceSpot bool   `json:"forceSpot"`
 }
 
 type DeployerCommandDeploymentDeploySpec struct {
