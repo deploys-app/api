@@ -235,7 +235,8 @@ type DeploymentDisk struct {
 
 func (m *DeploymentDeploy) Valid() error {
 	m.Name = strings.TrimSpace(m.Name)
-	m.Image = strings.ReplaceAll(m.Image, " ", "") // remove all space in image
+	m.Image = strings.ReplaceAll(m.Image, " ", "")  // remove all space in image
+	m.Image = strings.ReplaceAll(m.Image, "\t", "") // remove all tab character
 
 	// TODO: autofill location until all user migrate
 	if m.Location == "" {
