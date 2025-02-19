@@ -24,13 +24,20 @@ type CollectorProject struct {
 }
 
 type CollectorSetProjectUsage struct {
-	Location  string                           `json:"location" yaml:"location"`
-	ProjectID int64                            `json:"projectId,string" yaml:"projectId"`
-	At        string                           `json:"at" yaml:"at"`
-	Resources []*CollectorProjectUsageResource `json:"resources" yaml:"resources"`
+	Location  string                                 `json:"location" yaml:"location"`
+	ProjectID int64                                  `json:"projectId,string" yaml:"projectId"`
+	At        string                                 `json:"at" yaml:"at"`
+	Resources []*CollectorProjectUsageResource       `json:"resources" yaml:"resources"`
+	Detail    []*CollectorProjectUsageDetailResource `json:"detail" yaml:"detail"`
 }
 
 type CollectorProjectUsageResource struct {
+	Name  string `json:"name" yaml:"name"`
+	Value string `json:"value" yaml:"value"` // decimal
+}
+
+type CollectorProjectUsageDetailResource struct {
+	Ref   string `json:"ref" yaml:"ref"` // deployment/{name}, disk/{name}
 	Name  string `json:"name" yaml:"name"`
 	Value string `json:"value" yaml:"value"` // decimal
 }
