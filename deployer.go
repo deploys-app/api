@@ -84,27 +84,39 @@ type DeployerCommandDeploymentDeployBillingConfig struct {
 }
 
 type DeployerCommandDeploymentDeploySpec struct {
-	Image                string             `json:"image"`
-	Env                  map[string]string  `json:"env"`
-	Command              []string           `json:"command"`
-	Args                 []string           `json:"args"`
-	WorkloadIdentityName string             `json:"workloadIdentityName"`
-	MinReplicas          int                `json:"minReplicas"`
-	MaxReplicas          int                `json:"maxReplicas"`
-	Port                 int                `json:"port"`
-	Protocol             DeploymentProtocol `json:"protocol"`
-	Internal             bool               `json:"internal"`
-	Schedule             string             `json:"schedule"`
-	Annotations          map[string]string  `json:"annotations"`
-	CPU                  string             `json:"cpu"`
-	CPULimit             string             `json:"cpuLimit"`
-	Memory               string             `json:"memory"`
-	PullSecretName       string             `json:"pullSecretName"`
-	DiskName             string             `json:"diskName"`
-	DiskMountPath        string             `json:"diskMountPath"`
-	DiskSubPath          string             `json:"diskSubPath"`
-	MountData            map[string]string  `json:"mountData"` // file path => data
-	Sidecars             []*Sidecar         `json:"sidecars"`
+	Image                string                `json:"image"`
+	Env                  map[string]string     `json:"env"`
+	Command              []string              `json:"command"`
+	Args                 []string              `json:"args"`
+	WorkloadIdentityName string                `json:"workloadIdentityName"`
+	MinReplicas          int                   `json:"minReplicas"`
+	MaxReplicas          int                   `json:"maxReplicas"`
+	Port                 int                   `json:"port"`
+	Protocol             DeploymentProtocol    `json:"protocol"`
+	Internal             bool                  `json:"internal"`
+	Schedule             string                `json:"schedule"`
+	Annotations          map[string]string     `json:"annotations"`
+	CPU                  string                `json:"cpu"`
+	CPULimit             string                `json:"cpuLimit"`
+	Memory               string                `json:"memory"`
+	PullSecretName       string                `json:"pullSecretName"`
+	DiskName             string                `json:"diskName"`
+	DiskMountPath        string                `json:"diskMountPath"`
+	DiskSubPath          string                `json:"diskSubPath"`
+	MountData            map[string]string     `json:"mountData"` // file path => data
+	Sidecars             []*Sidecar            `json:"sidecars"`
+	HealthCheck          DeploymentHealthCheck `json:"healthCheck"`
+}
+
+type DeploymentHealthCheck struct {
+	TCPSocket *TCPSocketAction `json:"tcpSocket"`
+	HTTPGet   *HTTPGetAction   `json:"httpGet"`
+}
+
+type TCPSocketAction struct{}
+
+type HTTPGetAction struct {
+	Path string `json:"path"`
 }
 
 type DeployerCommandRouteCreate struct {
