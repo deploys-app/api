@@ -156,12 +156,13 @@ type BillingReportResult struct {
 }
 
 type BillingSKUs struct {
-	CPUUsage float64 `json:"cpuUsage" yaml:"cpuUsage"`
-	CPU      float64 `json:"cpu" yaml:"cpu"`
-	Memory   float64 `json:"memory" yaml:"memory"`
-	Egress   float64 `json:"egress" yaml:"egress"`
-	Disk     float64 `json:"disk" yaml:"disk"`
-	Replica  float64 `json:"replica" yaml:"replica"`
+	CPUUsage  float64 `json:"cpuUsage" yaml:"cpuUsage"`
+	CPU       float64 `json:"cpu" yaml:"cpu"`
+	Memory    float64 `json:"memory" yaml:"memory"`
+	Egress    float64 `json:"egress" yaml:"egress"`
+	Disk      float64 `json:"disk" yaml:"disk"`
+	Replica   float64 `json:"replica" yaml:"replica"`
+	DomainCDN float64 `json:"domainCdn" yaml:"domainCdn"`
 }
 
 type BillingProject struct {
