@@ -18,7 +18,7 @@ var (
 // global
 const (
 	MinNameLength = 3
-	MaxNameLength = 27
+	MaxNameLength = 26
 )
 
 // Deployments

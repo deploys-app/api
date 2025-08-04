@@ -532,7 +532,8 @@ func (m *DeploymentDelete) Valid() error {
 	v.Must(m.Location != "", "location required")
 	v.Must(m.Project != "", "project required")
 	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
-	v.Mustf(utf8.RuneCountInString(m.Name) <= MaxNameLength, "name must have length less then %d characters", MaxNameLength)
+	// allow deletes old spec long name
+	v.Mustf(utf8.RuneCountInString(m.Name) <= MaxNameLength*2, "name must have length less then %d characters", MaxNameLength*2)
 
 	return WrapValidate(v)
 }
