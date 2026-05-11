@@ -1,0 +1,51 @@
+package client
+
+import (
+	"context"
+
+	"github.com/deploys-app/api"
+)
+
+type registryClient struct {
+	inv invoker
+}
+
+func (c registryClient) List(ctx context.Context, m *api.RegistryList) (*api.RegistryListResult, error) {
+	var res api.RegistryListResult
+	if err := c.inv.invoke(ctx, "registry.list", m, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c registryClient) Get(ctx context.Context, m *api.RegistryGet) (*api.RegistryRepository, error) {
+	var res api.RegistryRepository
+	if err := c.inv.invoke(ctx, "registry.get", m, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c registryClient) GetTags(ctx context.Context, m *api.RegistryGetTags) (*api.RegistryGetTagsResult, error) {
+	var res api.RegistryGetTagsResult
+	if err := c.inv.invoke(ctx, "registry.getTags", m, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c registryClient) GetManifests(ctx context.Context, m *api.RegistryGetManifests) (*api.RegistryGetManifestsResult, error) {
+	var res api.RegistryGetManifestsResult
+	if err := c.inv.invoke(ctx, "registry.getManifests", m, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c registryClient) Delete(ctx context.Context, m *api.RegistryDelete) (*api.Empty, error) {
+	var res api.Empty
+	if err := c.inv.invoke(ctx, "registry.delete", m, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
