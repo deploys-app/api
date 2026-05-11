@@ -14,6 +14,7 @@ type Interface interface {
 	WorkloadIdentity() WorkloadIdentity
 	ServiceAccount() ServiceAccount
 	Email() Email
+	Registry() Registry
 	Collector() Collector
 	Deployer() Deployer
 }

@@ -109,6 +109,10 @@ func (c *Client) Email() api.Email {
 	return emailClient{c}
 }
 
+func (c *Client) Registry() api.Registry {
+	return registryClient{c}
+}
+
 func (c *Client) Collector() api.Collector {
 	return collectorClient{c}
 }
