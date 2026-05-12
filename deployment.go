@@ -225,6 +225,7 @@ type DeploymentDeploy struct {
 	Resources        *DeploymentResource `json:"resources" yaml:"resources"`
 	MountData        map[string]string   `json:"mountData" yaml:"mountData"`
 	Sidecars         []*Sidecar          `json:"sidecars" yaml:"sidecars"`
+	TTL              *int64              `json:"ttl" yaml:"ttl"` // seconds until auto-delete; nil = no change, 0 = clear TTL, >0 = set TTL
 }
 
 type DeploymentDisk struct {
@@ -335,6 +336,10 @@ func (m *DeploymentDeploy) Valid() error {
 		v.Must(s.Valid(), "invalid sidecar")
 	}
 
+	if m.TTL != nil {
+		v.Must(*m.TTL >= 0, "ttl must not be negative")
+	}
+
 	return WrapValidate(v)
 }
 
@@ -408,6 +413,7 @@ type DeploymentItem struct {
 	CreatedAt        time.Time          `json:"createdAt" yaml:"createdAt"`
 	CreatedBy        string             `json:"createdBy" yaml:"createdBy"`
 	SuccessAt        time.Time          `json:"successAt" yaml:"successAt"`
+	TTL              int64              `json:"ttl" yaml:"ttl"` // seconds until auto-delete; 0 means no TTL
 }
 
 type DeploymentGet struct {
