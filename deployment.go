@@ -225,7 +225,7 @@ type DeploymentDeploy struct {
 	Resources        *DeploymentResource `json:"resources" yaml:"resources"`
 	MountData        map[string]string   `json:"mountData" yaml:"mountData"`
 	Sidecars         []*Sidecar          `json:"sidecars" yaml:"sidecars"`
-	TTL              *int64              `json:"ttl" yaml:"ttl"` // seconds until auto-delete; 0 or nil means no TTL
+	TTL              *int64              `json:"ttl" yaml:"ttl"` // seconds until auto-delete; nil = no change, 0 = clear TTL, >0 = set TTL
 }
 
 type DeploymentDisk struct {
@@ -337,7 +337,7 @@ func (m *DeploymentDeploy) Valid() error {
 	}
 
 	if m.TTL != nil {
-		v.Must(*m.TTL > 0, "ttl must be positive")
+		v.Must(*m.TTL >= 0, "ttl must not be negative")
 	}
 
 	return WrapValidate(v)
