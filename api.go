@@ -17,4 +17,5 @@ type Interface interface {
 	Registry() Registry
 	Collector() Collector
 	Deployer() Deployer
+	AuditLog() AuditLog
 }

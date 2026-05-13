@@ -121,6 +121,10 @@ func (c *Client) Deployer() api.Deployer {
 	return deployerClient{c}
 }
 
+func (c *Client) AuditLog() api.AuditLog {
+	return auditLogClient{c}
+}
+
 func (c *Client) invoke(ctx context.Context, api string, r any, res any) error {
 	if err := validRequest(r); err != nil {
 		return err

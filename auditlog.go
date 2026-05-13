@@ -1,6 +1,13 @@
 package api
 
-import "time"
+import (
+	"context"
+	"time"
+)
+
+type AuditLog interface {
+	List(ctx context.Context, m *AuditLogList) (*AuditLogListResult, error)
+}
 
 type AuditLogActor struct {
 	Email string         `json:"email" yaml:"email"`
