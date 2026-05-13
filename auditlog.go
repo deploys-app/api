@@ -8,17 +8,17 @@ type AuditLogActor struct {
 }
 
 type AuditLogResource struct {
-	Type string `json:"type" yaml:"type"`
-	ID   string `json:"id" yaml:"id"`
-	Name string `json:"name" yaml:"name"`
+	Type       string `json:"type" yaml:"type"`
+	ID         string `json:"id" yaml:"id"`
+	Name       string `json:"name" yaml:"name"`
+	LocationID string `json:"locationId" yaml:"locationId"`
 }
 
 type AuditLogItem struct {
-	ID         int64            `json:"id" yaml:"id"`
-	Resource   AuditLogResource `json:"resource" yaml:"resource"`
-	Actor      AuditLogActor    `json:"actor" yaml:"actor"`
-	LocationID string           `json:"locationId" yaml:"locationId"`
-	Action     string           `json:"action" yaml:"action"`
+	ID       int64            `json:"id" yaml:"id"`
+	Resource AuditLogResource `json:"resource" yaml:"resource"`
+	Actor    AuditLogActor    `json:"actor" yaml:"actor"`
+	Action   string           `json:"action" yaml:"action"`
 	Outcome    AuditOutcome     `json:"outcome" yaml:"outcome"`
 	Detail     string           `json:"detail" yaml:"detail"`
 	CreatedAt  time.Time        `json:"createdAt" yaml:"createdAt"`
