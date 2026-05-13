@@ -15,13 +15,13 @@ type AuditLogResource struct {
 }
 
 type AuditLogItem struct {
-	ID       int64            `json:"id" yaml:"id"`
-	Resource AuditLogResource `json:"resource" yaml:"resource"`
-	Actor    AuditLogActor    `json:"actor" yaml:"actor"`
-	Action   string           `json:"action" yaml:"action"`
-	Outcome    AuditOutcome     `json:"outcome" yaml:"outcome"`
-	Detail     string           `json:"detail" yaml:"detail"`
-	CreatedAt  time.Time        `json:"createdAt" yaml:"createdAt"`
+	ID        int64            `json:"id" yaml:"id"`
+	Resource  AuditLogResource `json:"resource" yaml:"resource"`
+	Actor     AuditLogActor    `json:"actor" yaml:"actor"`
+	Action    string           `json:"action" yaml:"action"`
+	Outcome   AuditOutcome     `json:"outcome" yaml:"outcome"`
+	Detail    string           `json:"detail" yaml:"detail"`
+	CreatedAt time.Time        `json:"createdAt" yaml:"createdAt"`
 }
 
 type AuditLogListResult struct {
