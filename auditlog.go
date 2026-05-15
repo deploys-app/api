@@ -36,13 +36,13 @@ type AuditLogListResult struct {
 }
 
 type AuditLogList struct {
-	Project      string    `json:"project" yaml:"project"`
-	ResourceType string    `json:"resourceType" yaml:"resourceType"`
-	Actor        string    `json:"actor" yaml:"actor"`
-	Outcome      int       `json:"outcome" yaml:"outcome"`
-	After        time.Time `json:"after" yaml:"after"`
-	Before       time.Time `json:"before" yaml:"before"`
-	Limit        int       `json:"limit" yaml:"limit"`
+	Project      string       `json:"project" yaml:"project"`
+	ResourceType string       `json:"resourceType" yaml:"resourceType"`
+	Actor        string       `json:"actor" yaml:"actor"`
+	Outcome      AuditOutcome `json:"outcome" yaml:"outcome"`
+	After        time.Time    `json:"after" yaml:"after"`
+	Before       time.Time    `json:"before" yaml:"before"`
+	Limit        int          `json:"limit" yaml:"limit"`
 }
 
 func (m *AuditLogList) Valid() error {
