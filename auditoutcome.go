@@ -22,13 +22,29 @@ func (a *AuditOutcome) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
-	*a = AuditOutcome(0)
+	*a = parseAuditOutcome(s)
+	return nil
+}
 
+func (a AuditOutcome) MarshalYAML() (any, error) {
+	return a.String(), nil
+}
+
+func (a *AuditOutcome) UnmarshalYAML(unmarshal func(any) error) error {
+	var s string
+	err := unmarshal(&s)
+	if err != nil {
+		return err
+	}
+	*a = parseAuditOutcome(s)
+	return nil
+}
+
+func parseAuditOutcome(s string) AuditOutcome {
 	for _, x := range []AuditOutcome{AuditOutcomeSuccess, AuditOutcomeFailure} {
 		if x.String() == s {
-			*a = x
-			return nil
+			return x
 		}
 	}
-	return nil
+	return AuditOutcome(0)
 }

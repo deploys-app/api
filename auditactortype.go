@@ -22,13 +22,29 @@ func (t *AuditActorType) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
-	*t = AuditActorType(0)
+	*t = parseAuditActorType(s)
+	return nil
+}
 
+func (t AuditActorType) MarshalYAML() (any, error) {
+	return t.String(), nil
+}
+
+func (t *AuditActorType) UnmarshalYAML(unmarshal func(any) error) error {
+	var s string
+	err := unmarshal(&s)
+	if err != nil {
+		return err
+	}
+	*t = parseAuditActorType(s)
+	return nil
+}
+
+func parseAuditActorType(s string) AuditActorType {
 	for _, x := range []AuditActorType{AuditActorTypeUser, AuditActorTypeServiceAccount} {
 		if x.String() == s {
-			*t = x
-			return nil
+			return x
 		}
 	}
-	return nil
+	return AuditActorType(0)
 }
