@@ -76,6 +76,8 @@ var permissions = []string{
 	"registry.pull",
 	"registry.list",
 	"registry.get",
+	"auditlog.*",
+	"auditlog.list",
 }
 
 func Permissions() []string {
