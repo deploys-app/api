@@ -50,6 +50,9 @@ var (
 	ErrDomainDisableCDNNotEnabled    = newError("api: domain disable cdn not enabled for this project")
 	ErrEmailDomainNotFound           = newError("api: email domain not found")
 	ErrTTLDeploymentNotAllowRoute    = newError("api: ttl deployment not allow to be set by route")
+	ErrEnvGroupNotFound              = newError("api: env group not found")
+	ErrEnvGroupAlreadyExists         = newError("api: env group already exists")
+	ErrEnvGroupInUse                 = newError("api: env group in use")
 )
 
 var AllErrors []error

@@ -213,9 +213,12 @@ type DeploymentDeploy struct {
 	Port             *int                `json:"port" yaml:"port"`
 	Protocol         *DeploymentProtocol `json:"protocol" yaml:"protocol"`   // protocol for WebService
 	Internal         *bool               `json:"internal" yaml:"internal"`   // run WebService as internal service
-	Env              map[string]string   `json:"env" yaml:"env"`             // override all env
-	AddEnv           map[string]string   `json:"addEnv" yaml:"addEnv"`       // add env to old revision env
-	RemoveEnv        []string            `json:"removeEnv" yaml:"removeEnv"` // remove env from old revision env
+	Env              map[string]string   `json:"env" yaml:"env"`                         // override all env
+	AddEnv           map[string]string   `json:"addEnv" yaml:"addEnv"`                   // add env to old revision env
+	RemoveEnv        []string            `json:"removeEnv" yaml:"removeEnv"`             // remove env from old revision env
+	EnvGroups        []string            `json:"envGroups" yaml:"envGroups"`             // override all env groups
+	AddEnvGroups     []string            `json:"addEnvGroups" yaml:"addEnvGroups"`       // add env groups to old revision
+	RemoveEnvGroups  []string            `json:"removeEnvGroups" yaml:"removeEnvGroups"` // remove env groups from old revision
 	Command          []string            `json:"command" yaml:"command"`
 	Args             []string            `json:"args" yaml:"args"`
 	WorkloadIdentity *string             `json:"workloadIdentity" yaml:"workloadIdentity"` // workload identity name
@@ -383,6 +386,7 @@ type DeploymentItem struct {
 	Revision         int64              `json:"revision" yaml:"revision"`
 	Image            string             `json:"image" yaml:"image"`
 	Env              map[string]string  `json:"env" yaml:"env"`
+	EnvGroups        []string           `json:"envGroups" yaml:"envGroups"`
 	Command          []string           `json:"command" yaml:"command"`
 	Args             []string           `json:"args" yaml:"args"`
 	WorkloadIdentity string             `json:"workloadIdentity" yaml:"workloadIdentity"`
