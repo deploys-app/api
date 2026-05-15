@@ -15,6 +15,7 @@ type Interface interface {
 	ServiceAccount() ServiceAccount
 	Email() Email
 	Registry() Registry
+	EnvGroup() EnvGroup
 	Collector() Collector
 	Deployer() Deployer
 	AuditLog() AuditLog

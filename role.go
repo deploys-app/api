@@ -76,6 +76,12 @@ var permissions = []string{
 	"registry.pull",
 	"registry.list",
 	"registry.get",
+	"envgroup.*",
+	"envgroup.create",
+	"envgroup.update",
+	"envgroup.list",
+	"envgroup.get",
+	"envgroup.delete",
 	"auditlog.*",
 	"auditlog.list",
 }

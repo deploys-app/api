@@ -113,6 +113,10 @@ func (c *Client) Registry() api.Registry {
 	return registryClient{c}
 }
 
+func (c *Client) EnvGroup() api.EnvGroup {
+	return envGroupClient{c}
+}
+
 func (c *Client) Collector() api.Collector {
 	return collectorClient{c}
 }
