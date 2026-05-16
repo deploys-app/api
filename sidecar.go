@@ -62,7 +62,7 @@ func (s *CloudSQLProxySidecar) config() *SidecarConfig {
 
 	cfg := SidecarConfig{
 		Name:  "cloudsql-proxy",
-		Image: "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.7.0",
+		Image: "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.21.2",
 		Port:  &port,
 		Args: []string{
 			s.Instance,
