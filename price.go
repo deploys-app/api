@@ -7,5 +7,5 @@ const (
 	PriceEgress    = 4        // GiB
 	PriceDisk      = 0.000004 // GiB/s
 	PriceReplica   = 0.000004 // replica/s
-	PriceDomainCDN = 1000     // domain/month
+	PriceDomainCDN = 0.00038  // domain/s
 )
