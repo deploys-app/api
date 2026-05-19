@@ -20,10 +20,9 @@ type Domain interface {
 type DomainCreate struct {
 	Project  string     `json:"project" yaml:"project"`
 	Location string     `json:"location" yaml:"location"`
-	Domain   string     `json:"domain" yaml:"domain"`
-	Wildcard bool       `json:"wildcard" yaml:"wildcard"`
-	CDN      bool       `json:"cdn" yaml:"cdn"`
-	Type     DomainType `json:"type" yaml:"type"` // deprecated
+	Domain   string `json:"domain" yaml:"domain"`
+	Wildcard bool   `json:"wildcard" yaml:"wildcard"`
+	CDN      bool   `json:"cdn" yaml:"cdn"`
 }
 
 func (m *DomainCreate) Valid() error {
@@ -85,7 +84,6 @@ type DomainItem struct {
 	Project      string             `json:"project" yaml:"project"`
 	Location     string             `json:"location" yaml:"location"`
 	Domain       string             `json:"domain" yaml:"domain"`
-	Type         DomainType         `json:"type" yaml:"type"` // deprecated
 	Wildcard     bool               `json:"wildcard" yaml:"wildcard"`
 	CDN          bool               `json:"cdn" yaml:"cdn"`
 	Verification DomainVerification `json:"verification" yaml:"verification"`
