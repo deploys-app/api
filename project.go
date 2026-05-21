@@ -147,6 +147,7 @@ type ProjectUsageResult struct {
 	RegistryEgress float64 `json:"registryEgress" yaml:"registryEgress"`
 	Disk           float64 `json:"disk" yaml:"disk"`
 	Replica        float64 `json:"replica" yaml:"replica"`
+	DomainCDN      float64 `json:"domainCdn" yaml:"domainCdn"`
 }
 
 func (m *ProjectUsageResult) Table() [][]string {
@@ -159,6 +160,7 @@ func (m *ProjectUsageResult) Table() [][]string {
 		{"RegistryEgress", humanize.CommafWithDigits(m.RegistryEgress, 2)},
 		{"Disk", humanize.CommafWithDigits(m.Disk, 2)},
 		{"Replica", humanize.CommafWithDigits(m.Replica, 2)},
+		{"DomainCDN", humanize.CommafWithDigits(m.DomainCDN, 2)},
 	}
 	return table
 }
