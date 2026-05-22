@@ -163,6 +163,7 @@ type RouteItem struct {
 	Target     string      `json:"target" yaml:"target"`
 	Deployment string      `json:"deployment" yaml:"deployment"`
 	Config     RouteConfig `json:"config" yaml:"config"`
+	Paused     bool        `json:"paused" yaml:"paused"`
 	CreatedAt  time.Time   `json:"createdAt" yaml:"createdAt"`
 	CreatedBy  string      `json:"createdBy" yaml:"createdBy"`
 }
