@@ -45,6 +45,7 @@ var (
 	ErrDomainInUsed                  = newError("api: domain in used")
 	ErrPurgeFailed                   = newError("api: purge failed")
 	ErrDomainNotFound                = newError("api: domain not found")
+	ErrDomainNotVerified             = newError("api: domain dns not verified, please configure dns and wait for verification")
 	ErrDomainCanNotPurge             = newError("api: domain can not purge")
 	ErrDomainPurgeInvalid            = newError("api: domain purge invalid")
 	ErrDomainDisableCDNNotEnabled    = newError("api: domain disable cdn not enabled for this project")

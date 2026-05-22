@@ -30,6 +30,8 @@ type DeployerCommandItem struct {
 	DeploymentCleanup      *DeployerCommandDeploymentMetadata     `json:"deploymentCleanup,omitempty"`
 	RouteCreate            *DeployerCommandRouteCreate            `json:"routeCreate,omitempty"`
 	RouteDelete            *DeployerCommandRouteDelete            `json:"routeDelete,omitempty"`
+	DomainCertCreate       *DeployerCommandDomainCertCreate       `json:"domainCertCreate,omitempty"`
+	DomainCertDelete       *DeployerCommandDomainCertDelete       `json:"domainCertDelete,omitempty"`
 }
 
 type DeployerCommandMetadata struct {
@@ -134,6 +136,26 @@ type DeployerCommandRouteDelete struct {
 	Domain    string `json:"domain"`
 }
 
+// DeployerCommandDomainCertCreate asks the location's deployer to issue a
+// cert-manager Certificate for a non-CDN domain that has passed DNS
+// verification. Issued by the apiserver when domains.cert_status transitions
+// to DomainCertStatusPendingCreate.
+type DeployerCommandDomainCertCreate struct {
+	ID        int64  `json:"id"`
+	ProjectID int64  `json:"projectId"`
+	Domain    string `json:"domain"`
+}
+
+// DeployerCommandDomainCertDelete asks the location's deployer to remove the
+// cert-manager Certificate for a non-CDN domain whose DNS no longer points at
+// us (or that's being deleted). Issued when cert_status transitions to
+// DomainCertStatusPendingDelete.
+type DeployerCommandDomainCertDelete struct {
+	ID        int64  `json:"id"`
+	ProjectID int64  `json:"projectId"`
+	Domain    string `json:"domain"`
+}
+
 type DeployerSetResult []*DeployerSetResultItem
 
 type DeployerSetResultItem struct {
@@ -149,6 +171,8 @@ type DeployerSetResultItem struct {
 	DeploymentCleanup      *DeployerSetResultItemDeployment `json:"deploymentCleanup,omitempty"`
 	RouteCreate            *DeployerSetResultItemGeneral    `json:"routeCreate,omitempty"`
 	RouteDelete            *DeployerSetResultItemGeneral    `json:"routeDelete,omitempty"`
+	DomainCertCreate       *DeployerSetResultItemGeneral    `json:"domainCertCreate,omitempty"`
+	DomainCertDelete       *DeployerSetResultItemGeneral    `json:"domainCertDelete,omitempty"`
 }
 
 type DeployerSetResultItemGeneral struct {

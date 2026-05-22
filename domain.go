@@ -96,6 +96,17 @@ type DomainItem struct {
 type DomainVerification struct {
 	Ownership DomainVerificationOwnership `json:"ownership"`
 	SSL       DomainVerificationSSL       `json:"ssl"`
+	DNS       DomainVerificationDNS       `json:"dns"`
+}
+
+// DomainVerificationDNS is the apiserver's view of the non-CDN DNS check.
+// Populated by the verify-domains cron. VerifiedAt is the last time DNS
+// pointed at the location's load balancer (directly or via a known CDN proxy
+// with a matching ownership TXT). LastCheckedAt is the most recent attempt.
+type DomainVerificationDNS struct {
+	VerifiedAt    time.Time `json:"verifiedAt,omitempty"`
+	LastCheckedAt time.Time `json:"lastCheckedAt,omitempty"`
+	Errors        []string  `json:"errors,omitempty"`
 }
 
 type DomainVerificationOwnership struct {
