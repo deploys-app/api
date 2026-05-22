@@ -10,11 +10,12 @@ func _() {
 	var x [1]struct{}
 	_ = x[Create-1]
 	_ = x[Delete-2]
+	_ = x[Pause-3]
 }
 
-const _Action_name = "createdelete"
+const _Action_name = "createdeletepause"
 
-var _Action_index = [...]uint8{0, 6, 12}
+var _Action_index = [...]uint8{0, 6, 12, 17}
 
 func (i Action) String() string {
 	i -= 1

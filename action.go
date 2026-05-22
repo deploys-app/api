@@ -11,6 +11,7 @@ const (
 	_      Action = iota
 	Create        // create
 	Delete        // delete
+	Pause         // pause
 )
 
 func (a Action) MarshalJSON() ([]byte, error) {
@@ -26,7 +27,7 @@ func (a *Action) UnmarshalJSON(b []byte) error {
 
 	*a = Action(0)
 
-	for _, x := range []Action{Create, Delete} {
+	for _, x := range []Action{Create, Delete, Pause} {
 		if x.String() == s {
 			*a = x
 			return nil
