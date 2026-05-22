@@ -86,6 +86,7 @@ type DomainItem struct {
 	Domain       string             `json:"domain" yaml:"domain"`
 	Wildcard     bool               `json:"wildcard" yaml:"wildcard"`
 	CDN          bool               `json:"cdn" yaml:"cdn"`
+	CDNType      string             `json:"cdnType" yaml:"cdnType"`
 	Verification DomainVerification `json:"verification" yaml:"verification"`
 	DNSConfig    DomainDNSConfig    `json:"dnsConfig" yaml:"dnsConfig"`
 	Status       DomainStatus       `json:"status" yaml:"status"`
