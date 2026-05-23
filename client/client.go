@@ -129,6 +129,10 @@ func (c *Client) AuditLog() api.AuditLog {
 	return auditLogClient{c}
 }
 
+func (c *Client) Dropbox() api.Dropbox {
+	return dropboxClient{c}
+}
+
 func (c *Client) invoke(ctx context.Context, api string, r any, res any) error {
 	if err := validRequest(r); err != nil {
 		return err
