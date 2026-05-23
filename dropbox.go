@@ -34,10 +34,10 @@ type DropboxListResult struct {
 }
 
 type DropboxItem struct {
-	Fn        string    `json:"fn" yaml:"fn"`
-	Filename  string    `json:"filename" yaml:"filename"`
-	Size      int64     `json:"size" yaml:"size"`
-	TTL       int       `json:"ttl" yaml:"ttl"`
-	CreatedAt time.Time `json:"createdAt" yaml:"createdAt"`
-	ExpiresAt time.Time `json:"expiresAt" yaml:"expiresAt"`
+	DownloadURL string    `json:"downloadUrl" yaml:"downloadUrl"`
+	Filename    string    `json:"filename" yaml:"filename"`
+	Size        int64     `json:"size" yaml:"size"`
+	TTL         int       `json:"ttl" yaml:"ttl"`
+	CreatedAt   time.Time `json:"createdAt" yaml:"createdAt"`
+	ExpiresAt   time.Time `json:"expiresAt" yaml:"expiresAt"`
 }
