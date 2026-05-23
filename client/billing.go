@@ -81,3 +81,21 @@ func (c billingClient) Project(ctx context.Context, m *api.BillingProject) (*api
 	}
 	return &res, nil
 }
+
+func (c billingClient) ListInvoices(ctx context.Context, m *api.InvoiceList) (*api.InvoiceListResult, error) {
+	var res api.InvoiceListResult
+	err := c.inv.invoke(ctx, "billing.listInvoices", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c billingClient) GetInvoice(ctx context.Context, m *api.InvoiceGet) (*api.InvoiceItem, error) {
+	var res api.InvoiceItem
+	err := c.inv.invoke(ctx, "billing.getInvoice", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
