@@ -55,6 +55,7 @@ var (
 	ErrEnvGroupNotFound              = newError("api: env group not found")
 	ErrEnvGroupAlreadyExists         = newError("api: env group already exists")
 	ErrEnvGroupInUse                 = newError("api: env group in use")
+	ErrInvoiceNotFound               = newError("api: invoice not found")
 )
 
 var AllErrors []error
