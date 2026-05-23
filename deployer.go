@@ -140,10 +140,16 @@ type DeployerCommandRouteDelete struct {
 // cert-manager Certificate for a non-CDN domain that has passed DNS
 // verification. Issued by the apiserver when domains.cert_status transitions
 // to DomainCertStatusPendingCreate.
+//
+// Wildcard rows route through a different cert-manager ClusterIssuer (DNS-01
+// via Cloud DNS + CNAME delegation) because Let's Encrypt requires DNS-01 for
+// `*.example.com`. The deployer branches on Wildcard to pick the issuer and
+// SAN list.
 type DeployerCommandDomainCertCreate struct {
 	ID        int64  `json:"id"`
 	ProjectID int64  `json:"projectId"`
 	Domain    string `json:"domain"`
+	Wildcard  bool   `json:"wildcard"`
 }
 
 // DeployerCommandDomainCertDelete asks the location's deployer to remove the
