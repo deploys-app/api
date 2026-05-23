@@ -129,10 +129,6 @@ func (c *Client) AuditLog() api.AuditLog {
 	return auditLogClient{c}
 }
 
-func (c *Client) Invoice() api.Invoice {
-	return invoiceClient{c}
-}
-
 func (c *Client) invoke(ctx context.Context, api string, r any, res any) error {
 	if err := validRequest(r); err != nil {
 		return err

@@ -19,5 +19,4 @@ type Interface interface {
 	Collector() Collector
 	Deployer() Deployer
 	AuditLog() AuditLog
-	Invoice() Invoice
 }
