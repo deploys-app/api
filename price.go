@@ -6,6 +6,7 @@ const (
 	PriceMemory         = 0.00007  // GiB/s
 	PriceEgress         = 4        // GiB
 	PriceRegistryEgress = 1        // GiB
+	PriceDropboxEgress  = 1        // GiB
 	PriceDisk           = 0.000004 // GiB/s
 	PriceReplica        = 0.000004 // replica/s
 	PriceDomainCDN      = 0.00038  // domain/s

@@ -164,6 +164,7 @@ type BillingSKUs struct {
 	Memory         float64 `json:"memory" yaml:"memory"`
 	Egress         float64 `json:"egress" yaml:"egress"`
 	RegistryEgress float64 `json:"registryEgress" yaml:"registryEgress"`
+	DropboxEgress  float64 `json:"dropboxEgress" yaml:"dropboxEgress"`
 	Disk           float64 `json:"disk" yaml:"disk"`
 	Replica        float64 `json:"replica" yaml:"replica"`
 	DomainCDN      float64 `json:"domainCdn" yaml:"domainCdn"`
