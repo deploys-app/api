@@ -2,6 +2,8 @@ package api
 
 import (
 	"context"
+	"mime/multipart"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -20,6 +22,8 @@ type Billing interface {
 	Project(ctx context.Context, m *BillingProject) (*BillingProjectResult, error)
 	ListInvoices(ctx context.Context, m *InvoiceList) (*InvoiceListResult, error)
 	GetInvoice(ctx context.Context, m *InvoiceGet) (*InvoiceItem, error)
+	DownloadInvoice(ctx context.Context, m *InvoiceGet) (*InvoiceDownloadResult, error)
+	UploadTransferSlip(ctx context.Context, m *InvoiceUploadSlip) (*InvoiceUploadSlipResult, error)
 }
 
 type BillingCreate struct {
@@ -211,13 +215,15 @@ type InvoiceListResult struct {
 }
 
 type InvoiceGet struct {
-	ID int64 `json:"id,string" yaml:"id"`
+	// InvoiceID rather than ID: this is a billing-module request, where a bare
+	// "id" would be ambiguous with the billing-account id.
+	InvoiceID int64 `json:"invoiceId,string" yaml:"invoiceId"`
 }
 
 func (m *InvoiceGet) Valid() error {
 	v := validator.New()
 
-	v.Must(m.ID > 0, "id required")
+	v.Must(m.InvoiceID > 0, "invoiceId required")
 
 	return WrapValidate(v)
 }
@@ -252,4 +258,52 @@ type InvoiceItem struct {
 	CreatedAt        time.Time `json:"createdAt" yaml:"createdAt"`
 
 	LineItems []*InvoiceLineItem `json:"lineItems" yaml:"lineItems"`
+}
+
+// InvoiceDownloadResult points at a rendered PDF copy of an invoice. The PDF
+// is uploaded to the dropbox service, so DownloadURL is a short-lived signed
+// link that expires at ExpiresAt — callers should fetch it promptly rather
+// than storing it.
+type InvoiceDownloadResult struct {
+	DownloadURL string    `json:"downloadUrl" yaml:"downloadUrl"`
+	ExpiresAt   time.Time `json:"expiresAt" yaml:"expiresAt"`
+}
+
+// MaxTransferSlipSize caps an uploaded payment slip. Slips are photos or PDF
+// scans of a bank transfer; 10 MiB is generous for either.
+const MaxTransferSlipSize = 10 << 20
+
+// InvoiceUploadSlip carries a customer's proof-of-payment (bank transfer slip)
+// for an invoice. It is a multipart upload: the invoice id in the `id` form
+// field and the file in the `slip` file field.
+type InvoiceUploadSlip struct {
+	ID   int64
+	File *multipart.FileHeader
+}
+
+func (m *InvoiceUploadSlip) UnmarshalMultipartForm(v *multipart.Form) error {
+	if ids := v.Value["id"]; len(ids) == 1 {
+		m.ID, _ = strconv.ParseInt(ids[0], 10, 64)
+	}
+	if fps := v.File["slip"]; len(fps) == 1 {
+		m.File = fps[0]
+	}
+	return nil
+}
+
+func (m *InvoiceUploadSlip) Valid() error {
+	v := validator.New()
+
+	v.Must(m.ID > 0, "id required")
+	if ok := v.Must(m.File != nil, "slip required"); ok {
+		v.Must(m.File.Size > 0, "slip required")
+		v.Must(m.File.Size <= MaxTransferSlipSize, "slip too large")
+	}
+
+	return WrapValidate(v)
+}
+
+type InvoiceUploadSlipResult struct {
+	DownloadURL string    `json:"downloadUrl" yaml:"downloadUrl"`
+	ExpiresAt   time.Time `json:"expiresAt" yaml:"expiresAt"`
 }
