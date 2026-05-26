@@ -56,6 +56,8 @@ var (
 	ErrEnvGroupAlreadyExists         = newError("api: env group already exists")
 	ErrEnvGroupInUse                 = newError("api: env group in use")
 	ErrInvoiceNotFound               = newError("api: invoice not found")
+	ErrWAFZoneNotFound               = newError("api: waf zone not found")
+	ErrWAFRuleInvalid                = newError("api: waf rule invalid")
 )
 
 var AllErrors []error
