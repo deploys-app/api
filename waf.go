@@ -24,6 +24,7 @@ import (
 // the controller's own namespace and is always authoritative over the zone.
 type WAF interface {
 	Get(ctx context.Context, m *WAFGet) (*WAFItem, error)
+	List(ctx context.Context, m *WAFList) (*WAFListResult, error)
 	Set(ctx context.Context, m *WAFSet) (*Empty, error)
 	Delete(ctx context.Context, m *WAFDelete) (*Empty, error)
 }
@@ -123,22 +124,60 @@ func (m *WAFDelete) Valid() error {
 	return WrapValidate(v)
 }
 
+type WAFList struct {
+	Project string `json:"project" yaml:"project"`
+}
+
+func (m *WAFList) Valid() error {
+	v := validator.New()
+
+	v.Must(m.Project != "", "project required")
+
+	return WrapValidate(v)
+}
+
+type WAFListResult struct {
+	Project string     `json:"project" yaml:"project"`
+	Items   []*WAFItem `json:"items" yaml:"items"`
+}
+
+func (m *WAFListResult) Table() [][]string {
+	table := [][]string{
+		{"LOCATION", "RULES", "STATUS", "AGE"},
+	}
+	for _, x := range m.Items {
+		table = append(table, []string{
+			x.Location,
+			strconv.Itoa(len(x.Rules)),
+			x.Status.Text(),
+			age(x.CreatedAt),
+		})
+	}
+	return table
+}
+
 type WAFItem struct {
 	Project     string    `json:"project" yaml:"project"`
 	Location    string    `json:"location" yaml:"location"`
 	Description string    `json:"description" yaml:"description"`
 	Rules       []WAFRule `json:"rules" yaml:"rules"`
-	CreatedAt   time.Time `json:"createdAt" yaml:"createdAt"`
-	CreatedBy   string    `json:"createdBy" yaml:"createdBy"`
+	// Status and Action expose the materialization state: Status is Pending
+	// while the deployer is (un)applying the zone and Success once live; Action
+	// is Create (set) or Delete (tearing down). Both are read-only.
+	Status    Status    `json:"status" yaml:"status"`
+	Action    Action    `json:"action" yaml:"action"`
+	CreatedAt time.Time `json:"createdAt" yaml:"createdAt"`
+	CreatedBy string    `json:"createdBy" yaml:"createdBy"`
 }
 
 func (m *WAFItem) Table() [][]string {
 	table := [][]string{
-		{"PROJECT", "LOCATION", "RULES", "AGE"},
+		{"PROJECT", "LOCATION", "RULES", "STATUS", "AGE"},
 		{
 			m.Project,
 			m.Location,
 			strconv.Itoa(len(m.Rules)),
+			m.Status.Text(),
 			age(m.CreatedAt),
 		},
 	}

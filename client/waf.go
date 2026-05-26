@@ -18,6 +18,14 @@ func (c wafClient) Get(ctx context.Context, m *api.WAFGet) (*api.WAFItem, error)
 	return &res, nil
 }
 
+func (c wafClient) List(ctx context.Context, m *api.WAFList) (*api.WAFListResult, error) {
+	var res api.WAFListResult
+	if err := c.inv.invoke(ctx, "waf.list", m, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 func (c wafClient) Set(ctx context.Context, m *api.WAFSet) (*api.Empty, error) {
 	var res api.Empty
 	if err := c.inv.invoke(ctx, "waf.set", m, &res); err != nil {
