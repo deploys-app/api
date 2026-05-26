@@ -32,6 +32,8 @@ type DeployerCommandItem struct {
 	RouteDelete            *DeployerCommandRouteDelete            `json:"routeDelete,omitempty"`
 	DomainCertCreate       *DeployerCommandDomainCertCreate       `json:"domainCertCreate,omitempty"`
 	DomainCertDelete       *DeployerCommandDomainCertDelete       `json:"domainCertDelete,omitempty"`
+	WAFSet                 *DeployerCommandWAFSet                 `json:"wafSet,omitempty"`
+	WAFDelete              *DeployerCommandWAFDelete              `json:"wafDelete,omitempty"`
 }
 
 type DeployerCommandMetadata struct {
@@ -162,6 +164,27 @@ type DeployerCommandDomainCertDelete struct {
 	Domain    string `json:"domain"`
 }
 
+// DeployerCommandWAFSet asks the location's deployer to materialize the
+// project's WAF zone: upsert a parapet zone ConfigMap (name = ZoneID, labeled
+// parapet.moonrhythm.io/waf: zone) holding the rules, and bind every one of the
+// project's Ingresses in this location via the parapet.moonrhythm.io/waf-zone
+// annotation. Issued when waf_zones.action is Create or Update.
+type DeployerCommandWAFSet struct {
+	ID        int64     `json:"id"`
+	ProjectID int64     `json:"projectId"`
+	ZoneID    string    `json:"zoneId"`
+	Rules     []WAFRule `json:"rules"`
+}
+
+// DeployerCommandWAFDelete asks the location's deployer to remove the project's
+// WAF zone ConfigMap and strip the waf-zone annotation from its Ingresses.
+// Issued when waf_zones.action is Delete.
+type DeployerCommandWAFDelete struct {
+	ID        int64  `json:"id"`
+	ProjectID int64  `json:"projectId"`
+	ZoneID    string `json:"zoneId"`
+}
+
 type DeployerSetResult []*DeployerSetResultItem
 
 type DeployerSetResultItem struct {
@@ -179,6 +202,8 @@ type DeployerSetResultItem struct {
 	RouteDelete            *DeployerSetResultItemGeneral    `json:"routeDelete,omitempty"`
 	DomainCertCreate       *DeployerSetResultItemGeneral    `json:"domainCertCreate,omitempty"`
 	DomainCertDelete       *DeployerSetResultItemGeneral    `json:"domainCertDelete,omitempty"`
+	WAFSet                 *DeployerSetResultItemGeneral    `json:"wafSet,omitempty"`
+	WAFDelete              *DeployerSetResultItemGeneral    `json:"wafDelete,omitempty"`
 }
 
 type DeployerSetResultItemGeneral struct {

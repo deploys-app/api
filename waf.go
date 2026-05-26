@@ -10,14 +10,15 @@ import (
 	"github.com/moonrhythm/validator"
 )
 
-// WAF manages a project's WAF zone: a single project-scoped CEL ruleset that
-// protects every route in the project. A zone maps 1:1 onto a parapet zone
-// ConfigMap (zone id derives from the project); rules map onto parapet's
-// waf.Rule. See the parapet-ingress-controller WAF.md for the engine and
-// evaluation order.
+// WAF manages a project's WAF zone: a single CEL ruleset per project per
+// location that protects every route the project has in that location. A zone
+// maps 1:1 onto a parapet zone ConfigMap in the location's cluster; rules map
+// onto parapet's waf.Rule. See the parapet-ingress-controller WAF.md for the
+// engine and evaluation order.
 //
-// There is at most one zone per project, so it is addressed by project alone
-// (no name). Set upserts the whole ruleset; Delete removes the zone entirely.
+// There is at most one zone per (project, location), so it is addressed by
+// project + location (no name). Set upserts the whole ruleset; Delete removes
+// the zone entirely.
 //
 // The platform-owned global baseline is not exposed here — it is operated in
 // the controller's own namespace and is always authoritative over the zone.
@@ -75,13 +76,15 @@ func validWAFRules(v *validator.Validator, rules []WAFRule) {
 }
 
 type WAFGet struct {
-	Project string `json:"project" yaml:"project"`
+	Project  string `json:"project" yaml:"project"`
+	Location string `json:"location" yaml:"location"`
 }
 
 func (m *WAFGet) Valid() error {
 	v := validator.New()
 
 	v.Must(m.Project != "", "project required")
+	v.Must(m.Location != "", "location required")
 
 	return WrapValidate(v)
 }
@@ -91,6 +94,7 @@ func (m *WAFGet) Valid() error {
 // previous good ruleset stays live.
 type WAFSet struct {
 	Project     string    `json:"project" yaml:"project"`
+	Location    string    `json:"location" yaml:"location"`
 	Description string    `json:"description" yaml:"description"`
 	Rules       []WAFRule `json:"rules" yaml:"rules"`
 }
@@ -99,25 +103,29 @@ func (m *WAFSet) Valid() error {
 	v := validator.New()
 
 	v.Must(m.Project != "", "project required")
+	v.Must(m.Location != "", "location required")
 	validWAFRules(v, m.Rules)
 
 	return WrapValidate(v)
 }
 
 type WAFDelete struct {
-	Project string `json:"project" yaml:"project"`
+	Project  string `json:"project" yaml:"project"`
+	Location string `json:"location" yaml:"location"`
 }
 
 func (m *WAFDelete) Valid() error {
 	v := validator.New()
 
 	v.Must(m.Project != "", "project required")
+	v.Must(m.Location != "", "location required")
 
 	return WrapValidate(v)
 }
 
 type WAFItem struct {
 	Project     string    `json:"project" yaml:"project"`
+	Location    string    `json:"location" yaml:"location"`
 	Description string    `json:"description" yaml:"description"`
 	Rules       []WAFRule `json:"rules" yaml:"rules"`
 	CreatedAt   time.Time `json:"createdAt" yaml:"createdAt"`
@@ -126,9 +134,10 @@ type WAFItem struct {
 
 func (m *WAFItem) Table() [][]string {
 	table := [][]string{
-		{"PROJECT", "RULES", "AGE"},
+		{"PROJECT", "LOCATION", "RULES", "AGE"},
 		{
 			m.Project,
+			m.Location,
 			strconv.Itoa(len(m.Rules)),
 			age(m.CreatedAt),
 		},
