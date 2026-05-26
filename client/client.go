@@ -93,6 +93,10 @@ func (c *Client) Route() api.Route {
 	return routeClient{c}
 }
 
+func (c *Client) WAF() api.WAF {
+	return wafClient{c}
+}
+
 func (c *Client) Disk() api.Disk {
 	return diskClient{c}
 }

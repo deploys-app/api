@@ -5,14 +5,16 @@ import (
 )
 
 const (
-	ReValidNameStr     = `^[a-z][a-z0-9\-]*[a-z0-9]$`
-	ReValidScheduleStr = `^((((\*(/\d+)?)|(\d+((-\d+)|(/\d+))?)),?)+\s?){5}$`
+	ReValidNameStr      = `^[a-z][a-z0-9\-]*[a-z0-9]$`
+	ReValidScheduleStr  = `^((((\*(/\d+)?)|(\d+((-\d+)|(/\d+))?)),?)+\s?){5}$`
+	ReValidWAFRuleIDStr = `^[a-zA-Z0-9][a-zA-Z0-9_\-]*$`
 )
 
 // global
 var (
-	ReValidName     = regexp.MustCompile(ReValidNameStr)
-	ReValidSchedule = regexp.MustCompile(ReValidScheduleStr)
+	ReValidName      = regexp.MustCompile(ReValidNameStr)
+	ReValidSchedule  = regexp.MustCompile(ReValidScheduleStr)
+	ReValidWAFRuleID = regexp.MustCompile(ReValidWAFRuleIDStr)
 )
 
 // global
@@ -26,4 +28,12 @@ const (
 	DeploymentMinReplicas = 1
 	DeploymentMaxReplicas = 20
 	DiskMaxSize           = 100
+)
+
+// WAF
+const (
+	WAFMaxRules            = 100
+	WAFMaxRuleIDLength     = 64
+	WAFMaxExpressionLength = 2048
+	WAFMaxMessageLength    = 256
 )

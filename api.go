@@ -9,6 +9,7 @@ type Interface interface {
 	Deployment() Deployment
 	Domain() Domain
 	Route() Route
+	WAF() WAF
 	Disk() Disk
 	PullSecret() PullSecret
 	WorkloadIdentity() WorkloadIdentity

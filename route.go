@@ -55,6 +55,9 @@ func (m *RouteCreate) Valid() error {
 type RouteConfig struct {
 	BasicAuth   *RouteConfigBasicAuth   `json:"basicAuth" yaml:"basicAuth"`
 	ForwardAuth *RouteConfigForwardAuth `json:"forwardAuth" yaml:"forwardAuth"`
+	// WAFZone binds this route to a project-scoped WAF zone by name (see WAF).
+	// Empty means no zone (the platform global baseline still applies).
+	WAFZone string `json:"wafZone" yaml:"wafZone"`
 }
 
 type RouteConfigBasicAuth struct {
@@ -99,6 +102,10 @@ func (m *RouteCreateV2) Valid() error {
 			v.Must(validURL(m.Config.ForwardAuth.Target), "target invalid")
 			v.Must(strings.HasPrefix(m.Target, "http://"), "target must start with http://")
 		}
+	}
+
+	if m.Config.WAFZone != "" {
+		v.Must(ReValidName.MatchString(m.Config.WAFZone), "wafZone invalid "+ReValidNameStr)
 	}
 
 	return WrapValidate(v)
