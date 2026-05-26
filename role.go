@@ -85,6 +85,7 @@ var permissions = []string{
 	"envgroup.delete",
 	"waf.*",
 	"waf.get",
+	"waf.list",
 	"waf.set",
 	"waf.delete",
 	"auditlog.*",
