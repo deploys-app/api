@@ -10,18 +10,20 @@ import (
 	"github.com/moonrhythm/validator"
 )
 
-// WAF manages tenant WAF zones: project-scoped, named rulesets that an Ingress
-// binds by name via RouteConfig.WAFZone. A zone maps 1:1 onto a parapet zone
-// ConfigMap (zone id = zone name); rules map onto parapet's waf.Rule. See the
-// parapet-ingress-controller WAF.md for the engine and evaluation order.
+// WAF manages a project's WAF zone: a single project-scoped CEL ruleset that
+// protects every route in the project. A zone maps 1:1 onto a parapet zone
+// ConfigMap (zone id derives from the project); rules map onto parapet's
+// waf.Rule. See the parapet-ingress-controller WAF.md for the engine and
+// evaluation order.
+//
+// There is at most one zone per project, so it is addressed by project alone
+// (no name). Set upserts the whole ruleset; Delete removes the zone entirely.
 //
 // The platform-owned global baseline is not exposed here — it is operated in
-// the controller's own namespace and is always authoritative over tenant zones.
+// the controller's own namespace and is always authoritative over the zone.
 type WAF interface {
-	Create(ctx context.Context, m *WAFCreate) (*Empty, error)
 	Get(ctx context.Context, m *WAFGet) (*WAFItem, error)
-	List(ctx context.Context, m *WAFList) (*WAFListResult, error)
-	Update(ctx context.Context, m *WAFUpdate) (*Empty, error)
+	Set(ctx context.Context, m *WAFSet) (*Empty, error)
 	Delete(ctx context.Context, m *WAFDelete) (*Empty, error)
 }
 
@@ -72,121 +74,50 @@ func validWAFRules(v *validator.Validator, rules []WAFRule) {
 	}
 }
 
-type WAFCreate struct {
-	Project     string    `json:"project" yaml:"project"`
-	Name        string    `json:"name" yaml:"name"`
-	Description string    `json:"description" yaml:"description"`
-	Rules       []WAFRule `json:"rules" yaml:"rules"`
-}
-
-func (m *WAFCreate) Valid() error {
-	m.Name = strings.TrimSpace(m.Name)
-
-	v := validator.New()
-
-	v.Must(m.Project != "", "project required")
-	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
-	{
-		cnt := utf8.RuneCountInString(m.Name)
-		v.Mustf(cnt >= MinNameLength && cnt <= MaxNameLength, "name must have length between %d-%d characters", MinNameLength, MaxNameLength)
-	}
-	validWAFRules(v, m.Rules)
-
-	return WrapValidate(v)
-}
-
-// WAFUpdate replaces the whole zone (description + ruleset). Mirrors parapet's
-// all-or-nothing SetRules: one bad rule rejects the batch and the previous
-// good ruleset stays live.
-type WAFUpdate struct {
-	Project     string    `json:"project" yaml:"project"`
-	Name        string    `json:"name" yaml:"name"`
-	Description string    `json:"description" yaml:"description"`
-	Rules       []WAFRule `json:"rules" yaml:"rules"`
-}
-
-func (m *WAFUpdate) Valid() error {
-	m.Name = strings.TrimSpace(m.Name)
-
-	v := validator.New()
-
-	v.Must(m.Project != "", "project required")
-	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
-	{
-		cnt := utf8.RuneCountInString(m.Name)
-		v.Mustf(cnt >= MinNameLength && cnt <= MaxNameLength, "name must have length between %d-%d characters", MinNameLength, MaxNameLength)
-	}
-	validWAFRules(v, m.Rules)
-
-	return WrapValidate(v)
-}
-
 type WAFGet struct {
 	Project string `json:"project" yaml:"project"`
-	Name    string `json:"name" yaml:"name"`
 }
 
 func (m *WAFGet) Valid() error {
-	m.Name = strings.TrimSpace(m.Name)
-
 	v := validator.New()
 
 	v.Must(m.Project != "", "project required")
-	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
+
+	return WrapValidate(v)
+}
+
+// WAFSet upserts the project's zone, replacing the whole ruleset. Mirrors
+// parapet's all-or-nothing SetRules: one bad rule rejects the batch and the
+// previous good ruleset stays live.
+type WAFSet struct {
+	Project     string    `json:"project" yaml:"project"`
+	Description string    `json:"description" yaml:"description"`
+	Rules       []WAFRule `json:"rules" yaml:"rules"`
+}
+
+func (m *WAFSet) Valid() error {
+	v := validator.New()
+
+	v.Must(m.Project != "", "project required")
+	validWAFRules(v, m.Rules)
 
 	return WrapValidate(v)
 }
 
 type WAFDelete struct {
 	Project string `json:"project" yaml:"project"`
-	Name    string `json:"name" yaml:"name"`
 }
 
 func (m *WAFDelete) Valid() error {
-	m.Name = strings.TrimSpace(m.Name)
-
-	v := validator.New()
-
-	v.Must(m.Project != "", "project required")
-	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
-
-	return WrapValidate(v)
-}
-
-type WAFList struct {
-	Project string `json:"project" yaml:"project"`
-}
-
-func (m *WAFList) Valid() error {
 	v := validator.New()
 
 	v.Must(m.Project != "", "project required")
 
 	return WrapValidate(v)
-}
-
-type WAFListResult struct {
-	Project string     `json:"project" yaml:"project"`
-	Items   []*WAFItem `json:"items" yaml:"items"`
-}
-
-func (m *WAFListResult) Table() [][]string {
-	table := [][]string{
-		{"NAME", "RULES", "AGE"},
-	}
-	for _, x := range m.Items {
-		table = append(table, []string{
-			x.Name,
-			strconv.Itoa(len(x.Rules)),
-			age(x.CreatedAt),
-		})
-	}
-	return table
 }
 
 type WAFItem struct {
 	Project     string    `json:"project" yaml:"project"`
-	Name        string    `json:"name" yaml:"name"`
 	Description string    `json:"description" yaml:"description"`
 	Rules       []WAFRule `json:"rules" yaml:"rules"`
 	CreatedAt   time.Time `json:"createdAt" yaml:"createdAt"`
@@ -195,9 +126,9 @@ type WAFItem struct {
 
 func (m *WAFItem) Table() [][]string {
 	table := [][]string{
-		{"NAME", "RULES", "AGE"},
+		{"PROJECT", "RULES", "AGE"},
 		{
-			m.Name,
+			m.Project,
 			strconv.Itoa(len(m.Rules)),
 			age(m.CreatedAt),
 		},

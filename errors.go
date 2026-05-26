@@ -57,8 +57,6 @@ var (
 	ErrEnvGroupInUse                 = newError("api: env group in use")
 	ErrInvoiceNotFound               = newError("api: invoice not found")
 	ErrWAFZoneNotFound               = newError("api: waf zone not found")
-	ErrWAFZoneAlreadyExists          = newError("api: waf zone already exists")
-	ErrWAFZoneInUse                  = newError("api: waf zone in use")
 	ErrWAFRuleInvalid                = newError("api: waf rule invalid")
 )
 
