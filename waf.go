@@ -33,6 +33,13 @@ type WAF interface {
 // bool; it is validated server-side by compiling the whole ruleset
 // all-or-nothing (the api library has no CEL dependency, so client-side
 // validation only covers structure).
+//
+// ID is server-managed: globally unique and project-prefixed
+// (<projectID>-<random>) so parapet's parapet_waf_matches{rule_id} can be
+// attributed back to the project. Clients do not pick it — send "" for a new
+// rule and the server generates one; echo the existing id (from Get/List) to
+// keep a rule's id (and its metric series) across edits. A non-empty id that
+// wasn't previously issued to this project is regenerated server-side.
 type WAFRule struct {
 	ID          string    `json:"id" yaml:"id"`
 	Description string    `json:"description" yaml:"description"`
@@ -59,7 +66,10 @@ func validWAFRules(v *validator.Validator, rules []WAFRule) {
 			ref = "#" + strconv.Itoa(i)
 		}
 
-		if v.Mustf(r.ID != "", "rule %s: id required", ref) {
+		// ID is server-managed (see WAFRule): "" means "generate one". Only
+		// validate an echoed id's shape/uniqueness; the server still regenerates
+		// any id it didn't issue to this project.
+		if r.ID != "" {
 			v.Mustf(ReValidWAFRuleID.MatchString(r.ID), "rule %s: id invalid "+ReValidWAFRuleIDStr, ref)
 			v.Mustf(utf8.RuneCountInString(r.ID) <= WAFMaxRuleIDLength, "rule %s: id must not exceed %d characters", ref, WAFMaxRuleIDLength)
 			v.Mustf(!seen[r.ID], "rule %s: duplicate id", ref)
