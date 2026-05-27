@@ -63,6 +63,7 @@ func (m *LocationItem) Table() [][]string {
 type LocationFeatures struct {
 	WorkloadIdentity bool      `json:"workloadIdentity,omitempty" yaml:"workloadIdentity"`
 	Disk             *struct{} `json:"disk,omitempty" yaml:"disk"`
+	WAF              *struct{} `json:"waf,omitempty" yaml:"waf"`
 }
 
 type LocationGet struct {
