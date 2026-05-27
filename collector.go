@@ -9,6 +9,7 @@ type Collector interface {
 	SetProjectUsage(ctx context.Context, m *CollectorSetProjectUsage) (*Empty, error)
 	SetDeploymentUsage(ctx context.Context, m *CollectorSetDeploymentUsage) (*Empty, error)
 	SetDiskUsage(ctx context.Context, m *CollectorSetDiskUsage) (*Empty, error)
+	SetWAFUsage(ctx context.Context, m *CollectorSetWAFUsage) (*Empty, error)
 }
 
 type CollectorLocation struct {
@@ -67,4 +68,22 @@ type CollectorDiskUsageItem struct {
 	Name      string  `json:"name" yaml:"name"`
 	Value     float64 `json:"value" yaml:"value"`
 	At        int64   `json:"at" yaml:"at"`
+}
+
+// CollectorSetWAFUsage upserts WAF match counts collected from parapet's
+// parapet_waf_matches counter. Each item is one (rule_id, action) bucket for a
+// minute; the collector parses ProjectID from the project-prefixed RuleID
+// (<projectID>-<rand>). Upserted by (location, project, ruleId, action, at) so
+// back-fill re-runs are idempotent.
+type CollectorSetWAFUsage struct {
+	Location string                   `json:"location" yaml:"location"`
+	List     []*CollectorWAFUsageItem `json:"list" yaml:"list"`
+}
+
+type CollectorWAFUsageItem struct {
+	ProjectID int64   `json:"projectId,string" yaml:"projectId"`
+	RuleID    string  `json:"ruleId" yaml:"ruleId"` // full generated id (<projectID>-<rand>)
+	Action    string  `json:"action" yaml:"action"` // log|allow|block
+	Value     float64 `json:"value" yaml:"value"`   // match count in the window
+	At        int64   `json:"at" yaml:"at"`         // unix second, minute-aligned bucket
 }

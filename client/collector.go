@@ -45,3 +45,12 @@ func (c collectorClient) SetDiskUsage(ctx context.Context, m *api.CollectorSetDi
 	}
 	return &res, nil
 }
+
+func (c collectorClient) SetWAFUsage(ctx context.Context, m *api.CollectorSetWAFUsage) (*api.Empty, error) {
+	var res api.Empty
+	err := c.inv.invoke(ctx, "collector.setWafUsage", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
