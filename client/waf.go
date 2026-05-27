@@ -41,3 +41,11 @@ func (c wafClient) Delete(ctx context.Context, m *api.WAFDelete) (*api.Empty, er
 	}
 	return &res, nil
 }
+
+func (c wafClient) Metrics(ctx context.Context, m *api.WAFMetrics) (*api.WAFMetricsResult, error) {
+	var res api.WAFMetricsResult
+	if err := c.inv.invoke(ctx, "waf.metrics", m, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}

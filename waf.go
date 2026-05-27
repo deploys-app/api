@@ -27,6 +27,7 @@ type WAF interface {
 	List(ctx context.Context, m *WAFList) (*WAFListResult, error)
 	Set(ctx context.Context, m *WAFSet) (*Empty, error)
 	Delete(ctx context.Context, m *WAFDelete) (*Empty, error)
+	Metrics(ctx context.Context, m *WAFMetrics) (*WAFMetricsResult, error)
 }
 
 // WAFRule mirrors parapet's waf.Rule. Expression is a CEL expression returning
@@ -192,4 +193,58 @@ func (m *WAFItem) Table() [][]string {
 		},
 	}
 	return table
+}
+
+// WAFMetrics reads a zone's match counts (parapet_waf_matches, collected per
+// minute into the apiserver) over a time range, for charting and totals.
+type WAFMetricsTimeRange string
+
+const (
+	WAFMetricsTimeRange1h  WAFMetricsTimeRange = "1h"
+	WAFMetricsTimeRange6h  WAFMetricsTimeRange = "6h"
+	WAFMetricsTimeRange12h WAFMetricsTimeRange = "12h"
+	WAFMetricsTimeRange1d  WAFMetricsTimeRange = "1d"
+	WAFMetricsTimeRange7d  WAFMetricsTimeRange = "7d"
+	WAFMetricsTimeRange30d WAFMetricsTimeRange = "30d" // = waf_usages TTL
+)
+
+var validWAFMetricsTimeRange = map[WAFMetricsTimeRange]bool{
+	WAFMetricsTimeRange1h:  true,
+	WAFMetricsTimeRange6h:  true,
+	WAFMetricsTimeRange12h: true,
+	WAFMetricsTimeRange1d:  true,
+	WAFMetricsTimeRange7d:  true,
+	WAFMetricsTimeRange30d: true,
+}
+
+type WAFMetrics struct {
+	Project   string              `json:"project" yaml:"project"`
+	Location  string              `json:"location" yaml:"location"`
+	TimeRange WAFMetricsTimeRange `json:"timeRange" yaml:"timeRange"`
+}
+
+func (m *WAFMetrics) Valid() error {
+	v := validator.New()
+
+	v.Must(m.Project != "", "project required")
+	v.Must(m.Location != "", "location required")
+	v.Must(validWAFMetricsTimeRange[m.TimeRange], "timeRange invalid")
+
+	return WrapValidate(v)
+}
+
+// WAFMetricsResult carries match counts at the (rule, action) grain: Series for
+// the time chart, plus per-series and grand Totals for the range sum / top rules.
+// RuleID is the full server id (<projectId>-<rand>), matching WAF.Get so the
+// caller can join a series to its rule.
+type WAFMetricsResult struct {
+	Series []*WAFMetricsSeries `json:"series" yaml:"series"`
+	Total  float64             `json:"total" yaml:"total"`
+}
+
+type WAFMetricsSeries struct {
+	RuleID string       `json:"ruleId" yaml:"ruleId"`
+	Action string       `json:"action" yaml:"action"`
+	Total  float64      `json:"total" yaml:"total"`   // this series' sum over the range
+	Points [][2]float64 `json:"points" yaml:"points"` // [unixSeconds, count], time-ordered
 }
