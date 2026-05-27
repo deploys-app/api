@@ -49,3 +49,11 @@ func (c registryClient) Delete(ctx context.Context, m *api.RegistryDelete) (*api
 	}
 	return &res, nil
 }
+
+func (c registryClient) Metrics(ctx context.Context, m *api.RegistryMetrics) (*api.RegistryMetricsResult, error) {
+	var res api.RegistryMetricsResult
+	if err := c.inv.invoke(ctx, "registry.metrics", m, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}

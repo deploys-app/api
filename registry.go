@@ -13,6 +13,7 @@ type Registry interface {
 	GetTags(ctx context.Context, m *RegistryGetTags) (*RegistryGetTagsResult, error)
 	GetManifests(ctx context.Context, m *RegistryGetManifests) (*RegistryGetManifestsResult, error)
 	Delete(ctx context.Context, m *RegistryDelete) (*Empty, error)
+	Metrics(ctx context.Context, m *RegistryMetrics) (*RegistryMetricsResult, error)
 }
 
 type RegistryList struct {
@@ -117,4 +118,27 @@ func (m *RegistryDelete) Valid() error {
 	v.Must(m.Repository != "", "repository required")
 
 	return WrapValidate(v)
+}
+
+type RegistryMetrics struct {
+	Project   string                `json:"project" yaml:"project"`
+	TimeRange UsageMetricsTimeRange `json:"timeRange" yaml:"timeRange"`
+}
+
+func (m *RegistryMetrics) Valid() error {
+	if m.TimeRange == "" {
+		m.TimeRange = UsageMetricsTimeRange30d
+	}
+
+	v := validator.New()
+
+	v.Must(m.Project != "", "project required")
+	v.Must(validUsageMetricsTimeRange[m.TimeRange], "timeRange invalid")
+
+	return WrapValidate(v)
+}
+
+type RegistryMetricsResult struct {
+	Egress  []*UsageMetricsLine `json:"egress" yaml:"egress"`
+	Storage []*UsageMetricsLine `json:"storage" yaml:"storage"`
 }
