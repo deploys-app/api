@@ -7,6 +7,7 @@ import (
 
 type Dropbox interface {
 	List(ctx context.Context, m *DropboxList) (*DropboxListResult, error)
+	Metrics(ctx context.Context, m *DropboxMetrics) (*DropboxMetricsResult, error)
 }
 
 type DropboxList struct {
@@ -40,4 +41,27 @@ type DropboxItem struct {
 	TTL         int       `json:"ttl" yaml:"ttl"`
 	CreatedAt   time.Time `json:"createdAt" yaml:"createdAt"`
 	ExpiresAt   time.Time `json:"expiresAt" yaml:"expiresAt"`
+}
+
+type DropboxMetrics struct {
+	Project   string                `json:"project" yaml:"project"`
+	TimeRange UsageMetricsTimeRange `json:"timeRange" yaml:"timeRange"`
+}
+
+func (m *DropboxMetrics) Valid() error {
+	if m.Project == "" {
+		return newError("project required")
+	}
+	if m.TimeRange == "" {
+		m.TimeRange = UsageMetricsTimeRange30d
+	}
+	if !validUsageMetricsTimeRange[m.TimeRange] {
+		return newError("timeRange invalid")
+	}
+	return nil
+}
+
+type DropboxMetricsResult struct {
+	Egress  []*UsageMetricsLine `json:"egress" yaml:"egress"`
+	Storage []*UsageMetricsLine `json:"storage" yaml:"storage"`
 }
