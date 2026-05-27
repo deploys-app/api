@@ -35,12 +35,14 @@ type WAF interface {
 // all-or-nothing (the api library has no CEL dependency, so client-side
 // validation only covers structure).
 //
-// ID is server-managed: globally unique and project-prefixed
-// (<projectID>-<random>) so parapet's parapet_waf_matches{rule_id} can be
-// attributed back to the project. Clients do not pick it — send "" for a new
-// rule and the server generates one; echo the existing id (from Get/List) to
-// keep a rule's id (and its metric series) across edits. A non-empty id that
-// wasn't previously issued to this project is regenerated server-side.
+// ID is server-managed and project-local: a short, opaque id the server
+// assigns. (Internally it is prefixed with the project id so parapet's
+// parapet_waf_matches{rule_id} can be attributed back to the project, but that
+// prefix is stripped from responses and re-applied to requests — clients never
+// see or send it.) Clients do not pick it — send "" for a new rule and the
+// server generates one; echo the existing id (from Get/List) to keep a rule's
+// id (and its metric series) across edits. An id that wasn't previously issued
+// to this project is regenerated server-side.
 type WAFRule struct {
 	ID          string    `json:"id" yaml:"id"`
 	Description string    `json:"description" yaml:"description"`
@@ -235,8 +237,8 @@ func (m *WAFMetrics) Valid() error {
 
 // WAFMetricsResult carries match counts at the (rule, action) grain: Series for
 // the time chart, plus per-series and grand Totals for the range sum / top rules.
-// RuleID is the full server id (<projectId>-<rand>), matching WAF.Get so the
-// caller can join a series to its rule.
+// RuleID is the short, project-local id, matching WAF.Get so the caller can join
+// a series to its rule.
 type WAFMetricsResult struct {
 	Series []*WAFMetricsSeries `json:"series" yaml:"series"`
 	Total  float64             `json:"total" yaml:"total"`
