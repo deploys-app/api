@@ -42,9 +42,33 @@ func (c registryClient) GetManifests(ctx context.Context, m *api.RegistryGetMani
 	return &res, nil
 }
 
+func (c registryClient) GetProjectStorage(ctx context.Context, m *api.RegistryGetProjectStorage) (*api.RegistryProjectStorage, error) {
+	var res api.RegistryProjectStorage
+	if err := c.inv.invoke(ctx, "registry.getProjectStorage", m, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 func (c registryClient) Delete(ctx context.Context, m *api.RegistryDelete) (*api.Empty, error) {
 	var res api.Empty
 	if err := c.inv.invoke(ctx, "registry.delete", m, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c registryClient) DeleteManifest(ctx context.Context, m *api.RegistryDeleteManifest) (*api.Empty, error) {
+	var res api.Empty
+	if err := c.inv.invoke(ctx, "registry.deleteManifest", m, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c registryClient) Untag(ctx context.Context, m *api.RegistryUntag) (*api.Empty, error) {
+	var res api.Empty
+	if err := c.inv.invoke(ctx, "registry.untag", m, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
