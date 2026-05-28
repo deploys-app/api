@@ -12,7 +12,10 @@ type Registry interface {
 	Get(ctx context.Context, m *RegistryGet) (*RegistryRepository, error)
 	GetTags(ctx context.Context, m *RegistryGetTags) (*RegistryGetTagsResult, error)
 	GetManifests(ctx context.Context, m *RegistryGetManifests) (*RegistryGetManifestsResult, error)
+	GetProjectStorage(ctx context.Context, m *RegistryGetProjectStorage) (*RegistryProjectStorage, error)
 	Delete(ctx context.Context, m *RegistryDelete) (*Empty, error)
+	DeleteManifest(ctx context.Context, m *RegistryDeleteManifest) (*Empty, error)
+	Untag(ctx context.Context, m *RegistryUntag) (*Empty, error)
 	Metrics(ctx context.Context, m *RegistryMetrics) (*RegistryMetricsResult, error)
 }
 
@@ -106,6 +109,23 @@ type RegistryGetManifestsResult struct {
 	Items []*RegistryManifest `json:"items" yaml:"items"`
 }
 
+type RegistryGetProjectStorage struct {
+	Project string `json:"project" yaml:"project"`
+}
+
+func (m *RegistryGetProjectStorage) Valid() error {
+	v := validator.New()
+
+	v.Must(m.Project != "", "project required")
+
+	return WrapValidate(v)
+}
+
+type RegistryProjectStorage struct {
+	Size      int64      `json:"size" yaml:"size"`
+	UpdatedAt *time.Time `json:"updatedAt,omitempty" yaml:"updatedAt,omitempty"`
+}
+
 type RegistryDelete struct {
 	Project    string `json:"project" yaml:"project"`
 	Repository string `json:"repository" yaml:"repository"`
@@ -116,6 +136,38 @@ func (m *RegistryDelete) Valid() error {
 
 	v.Must(m.Project != "", "project required")
 	v.Must(m.Repository != "", "repository required")
+
+	return WrapValidate(v)
+}
+
+type RegistryDeleteManifest struct {
+	Project    string `json:"project" yaml:"project"`
+	Repository string `json:"repository" yaml:"repository"`
+	Digest     string `json:"digest" yaml:"digest"`
+}
+
+func (m *RegistryDeleteManifest) Valid() error {
+	v := validator.New()
+
+	v.Must(m.Project != "", "project required")
+	v.Must(m.Repository != "", "repository required")
+	v.Must(m.Digest != "", "digest required")
+
+	return WrapValidate(v)
+}
+
+type RegistryUntag struct {
+	Project    string `json:"project" yaml:"project"`
+	Repository string `json:"repository" yaml:"repository"`
+	Tag        string `json:"tag" yaml:"tag"`
+}
+
+func (m *RegistryUntag) Valid() error {
+	v := validator.New()
+
+	v.Must(m.Project != "", "project required")
+	v.Must(m.Repository != "", "repository required")
+	v.Must(m.Tag != "", "tag required")
 
 	return WrapValidate(v)
 }
