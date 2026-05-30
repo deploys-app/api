@@ -12,10 +12,8 @@ const (
 	PriceDomainCDN      = 0.00038  // domain/s
 
 	// External HTTP routes ("bring your own server" + WAF). The customer brings
-	// the compute, so we only bill edge work: a flat per-route fee for the edge
-	// (cert + WAF zone + load-balancer slot) and egress served from the edge.
-	// Defaults anchor to the CDN-domain and egress rates; both are overridable
-	// per account/location via *_skus and pending finance sign-off.
-	PriceWAFRoute  = 0.00038 // route/s (anchor: PriceDomainCDN)
-	PriceWAFEgress = 4       // GiB     (anchor: PriceEgress)
+	// the compute, so we bill only edge egress served from the edge — no flat
+	// per-route fee. Default anchors to the egress rate and is overridable per
+	// account/location via *_skus; pending finance sign-off.
+	PriceWAFEgress = 4 // GiB (anchor: PriceEgress)
 )
