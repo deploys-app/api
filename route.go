@@ -86,7 +86,7 @@ func (m *RouteCreateV2) Valid() error {
 	if m.Path != "" {
 		v.Must(strings.HasPrefix(m.Path, "/"), "path must start with /")
 	}
-	v.Must(validRouteTarget(m.Target), "target invalid")
+	v.Must(validRouteTarget(m.Target) || validExternalTarget(m.Target), "target invalid")
 
 	if m.Config.BasicAuth != nil {
 		v.Must(m.Config.ForwardAuth == nil, "basicAuth and forwardAuth cannot be used together")
