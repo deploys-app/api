@@ -233,8 +233,13 @@ type InvoiceLineItem struct {
 	Description string  `json:"description" yaml:"description"`
 	Quantity    float64 `json:"quantity" yaml:"quantity"`
 	Unit        string  `json:"unit" yaml:"unit"`
-	UnitPrice   float64 `json:"unitPrice" yaml:"unitPrice"`
-	Amount      float64 `json:"amount" yaml:"amount"`
+	// UnitPrice is the SKU's list rate per Unit (before any discount).
+	UnitPrice float64 `json:"unitPrice" yaml:"unitPrice"`
+	// Discount is the value, in the invoice currency, deducted from the list
+	// charge for this line — currently the free-tier allowance. The
+	// relationship is Amount = UnitPrice*Quantity - Discount.
+	Discount float64 `json:"discount" yaml:"discount"`
+	Amount   float64 `json:"amount" yaml:"amount"`
 }
 
 type InvoiceItem struct {
