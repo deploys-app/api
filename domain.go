@@ -18,11 +18,10 @@ type Domain interface {
 }
 
 type DomainCreate struct {
-	Project  string     `json:"project" yaml:"project"`
-	Location string     `json:"location" yaml:"location"`
+	Project  string `json:"project" yaml:"project"`
+	Location string `json:"location" yaml:"location"`
 	Domain   string `json:"domain" yaml:"domain"`
 	Wildcard bool   `json:"wildcard" yaml:"wildcard"`
-	CDN      bool   `json:"cdn" yaml:"cdn"`
 }
 
 func (m *DomainCreate) Valid() error {
@@ -85,8 +84,6 @@ type DomainItem struct {
 	Location     string             `json:"location" yaml:"location"`
 	Domain       string             `json:"domain" yaml:"domain"`
 	Wildcard     bool               `json:"wildcard" yaml:"wildcard"`
-	CDN          bool               `json:"cdn" yaml:"cdn"`
-	CDNType      string             `json:"cdnType" yaml:"cdnType"`
 	Verification DomainVerification `json:"verification" yaml:"verification"`
 	DNSConfig    DomainDNSConfig    `json:"dnsConfig" yaml:"dnsConfig"`
 	Status       DomainStatus       `json:"status" yaml:"status"`
@@ -100,10 +97,10 @@ type DomainVerification struct {
 	DNS       DomainVerificationDNS       `json:"dns"`
 }
 
-// DomainVerificationDNS is the apiserver's view of the non-CDN DNS check.
-// Populated by the verify-domains cron. VerifiedAt is the last time DNS
-// pointed at the location's load balancer (directly or via a known CDN proxy
-// with a matching ownership TXT). LastCheckedAt is the most recent attempt.
+// DomainVerificationDNS is the apiserver's view of the DNS check. Populated by
+// the verify-domains cron. VerifiedAt is the last time DNS pointed at the
+// location's load balancer (directly or via a proxy with a matching ownership
+// TXT). LastCheckedAt is the most recent attempt.
 type DomainVerificationDNS struct {
 	VerifiedAt    time.Time `json:"verifiedAt,omitempty"`
 	LastCheckedAt time.Time `json:"lastCheckedAt,omitempty"`

@@ -110,7 +110,6 @@ type ProjectQuota struct {
 }
 
 type ProjectConfig struct {
-	DomainAllowDisableCDN bool `json:"domainAllowDisableCdn" yaml:"domainAllowDisableCDN"`
 }
 
 type ProjectListResult struct {
@@ -148,7 +147,6 @@ type ProjectUsageResult struct {
 	DropboxEgress  float64 `json:"dropboxEgress" yaml:"dropboxEgress"`
 	Disk           float64 `json:"disk" yaml:"disk"`
 	Replica        float64 `json:"replica" yaml:"replica"`
-	DomainCDN      float64 `json:"domainCdn" yaml:"domainCdn"`
 }
 
 func (m *ProjectUsageResult) Table() [][]string {
@@ -162,7 +160,6 @@ func (m *ProjectUsageResult) Table() [][]string {
 		{"DropboxEgress", humanize.CommafWithDigits(m.DropboxEgress, 2)},
 		{"Disk", humanize.CommafWithDigits(m.Disk, 2)},
 		{"Replica", humanize.CommafWithDigits(m.Replica, 2)},
-		{"DomainCDN", humanize.CommafWithDigits(m.DomainCDN, 2)},
 	}
 	return table
 }

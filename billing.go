@@ -171,7 +171,6 @@ type BillingSKUs struct {
 	DropboxEgress  float64 `json:"dropboxEgress" yaml:"dropboxEgress"`
 	Disk           float64 `json:"disk" yaml:"disk"`
 	Replica        float64 `json:"replica" yaml:"replica"`
-	DomainCDN      float64 `json:"domainCdn" yaml:"domainCdn"`
 }
 
 type BillingProject struct {
