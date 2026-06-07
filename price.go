@@ -9,7 +9,6 @@ const (
 	PriceDropboxEgress  = 1        // GiB
 	PriceDisk           = 0.000004 // GiB/s
 	PriceReplica        = 0.000004 // replica/s
-	PriceDomainCDN      = 0.00038  // domain/s
 
 	// External HTTP routes ("bring your own server" + WAF). The customer brings
 	// the compute, so we bill only edge egress served from the edge — no flat

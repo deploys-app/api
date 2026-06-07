@@ -48,8 +48,6 @@ var (
 	ErrDomainNotVerified             = newError("api: domain dns not verified, please configure dns and wait for verification")
 	ErrDomainCanNotPurge             = newError("api: domain can not purge")
 	ErrDomainPurgeInvalid            = newError("api: domain purge invalid")
-	ErrDomainDisableCDNNotEnabled    = newError("api: domain disable cdn not enabled for this project")
-	ErrDomainCDNAndWildcard          = newError("api: cdn and wildcard cannot both be enabled")
 	ErrEmailDomainNotFound           = newError("api: email domain not found")
 	ErrTTLDeploymentNotAllowRoute    = newError("api: ttl deployment not allow to be set by route")
 	ErrEnvGroupNotFound              = newError("api: env group not found")
