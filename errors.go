@@ -1,6 +1,11 @@
 package api
 
 import (
+	"encoding/json"
+	"fmt"
+	"sort"
+	"strings"
+
 	"github.com/acoshift/arpc/v2"
 )
 
@@ -66,4 +71,68 @@ func newError(msg string) error {
 	err := arpc.NewError(msg)
 	AllErrors = append(AllErrors, err)
 	return err
+}
+
+// DomainInUsedRouteLimit caps how many route identifiers DomainInUsedError
+// spells out before collapsing the remainder into "(+N more)", so a wildcard
+// domain with many routes can't produce an unbounded message.
+const DomainInUsedRouteLimit = 10
+
+// DomainInUsedError is returned when a domain cannot be deleted because routes
+// still depend on it. It carries the blocking routes so server code can act on
+// them programmatically (errors.As), and renders them into the message string
+// the console parses.
+//
+// It implements arpc's OKError (so arpc answers 200 / ok:false instead of
+// masking it as a 500 "internal error") and marshals to the same
+// {code, message} envelope as the package's other errors, so returning it from
+// a handler keeps the wire contract identical to the sentinels.
+type DomainInUsedError struct {
+	// Routes are the "<host><path>" identifiers of the routes still pinning the
+	// domain (e.g. "app.example.com/api").
+	Routes []string
+}
+
+var (
+	_ error          = (*DomainInUsedError)(nil)
+	_ json.Marshaler = (*DomainInUsedError)(nil)
+	_ arpc.OKError   = (*DomainInUsedError)(nil)
+)
+
+// Error renders the sorted, capped message — the wire contract consumed by the
+// console — e.g.:
+//
+//	api: domain in used by route(s): a.example.com/, b.example.com/api (+3 more)
+//
+// With no routes it degrades to the bare ErrDomainInUsed message.
+func (e *DomainInUsedError) Error() string {
+	if len(e.Routes) == 0 {
+		return "api: domain in used"
+	}
+
+	rs := append([]string(nil), e.Routes...)
+	sort.Strings(rs)
+
+	shown := rs
+	if len(shown) > DomainInUsedRouteLimit {
+		shown = shown[:DomainInUsedRouteLimit]
+	}
+	msg := "api: domain in used by route(s): " + strings.Join(shown, ", ")
+	if len(rs) > DomainInUsedRouteLimit {
+		msg += fmt.Sprintf(" (+%d more)", len(rs)-DomainInUsedRouteLimit)
+	}
+	return msg
+}
+
+// OKError marks the error as a 200 / ok:false response, matching arpc.Error so
+// arpc doesn't mask it as a 500 "internal error".
+func (e *DomainInUsedError) OKError() {}
+
+// MarshalJSON emits the same {code, message} envelope as arpc.Error so the
+// console keeps reading error.message unchanged.
+func (e *DomainInUsedError) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Code    string `json:"code,omitempty"`
+		Message string `json:"message,omitempty"`
+	}{Message: e.Error()})
 }
