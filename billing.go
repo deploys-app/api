@@ -23,6 +23,9 @@ type Billing interface {
 	ListInvoices(ctx context.Context, m *InvoiceList) (*InvoiceListResult, error)
 	GetInvoice(ctx context.Context, m *InvoiceGet) (*InvoiceItem, error)
 	DownloadInvoice(ctx context.Context, m *InvoiceGet) (*InvoiceDownloadResult, error)
+	// DownloadReceipt renders the receipt / tax-invoice PDF for a PAID invoice.
+	// Calling it on a draft/open/void invoice returns ErrInvoiceNotPaid.
+	DownloadReceipt(ctx context.Context, m *InvoiceGet) (*InvoiceDownloadResult, error)
 	UploadTransferSlip(ctx context.Context, m *InvoiceUploadSlip) (*InvoiceUploadSlipResult, error)
 }
 

@@ -109,6 +109,15 @@ func (c billingClient) DownloadInvoice(ctx context.Context, m *api.InvoiceGet) (
 	return &res, nil
 }
 
+func (c billingClient) DownloadReceipt(ctx context.Context, m *api.InvoiceGet) (*api.InvoiceDownloadResult, error) {
+	var res api.InvoiceDownloadResult
+	err := c.inv.invoke(ctx, "billing.downloadReceipt", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 // UploadTransferSlip is a multipart upload; the JSON invoker can't express it,
 // so the Go client leaves it unimplemented (same as Me.UploadKYCDocument).
 // Callers upload directly via multipart POST to billing.uploadTransferSlip.

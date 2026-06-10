@@ -61,6 +61,7 @@ var (
 	ErrInvoiceNotFound               = newError("api: invoice not found")
 	ErrInvoicePDFUnavailable         = newError("api: invoice pdf export is not available")
 	ErrInvoicePDFFailed              = newError("api: could not generate the invoice pdf, please try again")
+	ErrInvoiceNotPaid                = newError("api: invoice is not paid")
 	ErrWAFZoneNotFound               = newError("api: waf zone not found")
 	ErrWAFRuleInvalid                = newError("api: waf rule invalid")
 )
