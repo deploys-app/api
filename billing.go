@@ -227,16 +227,21 @@ func (m *InvoiceGet) Valid() error {
 	return WrapValidate(v)
 }
 
+// InvoiceLineItem is one summary line on an invoice: a single project's total
+// charge for the billing period. Invoices are grouped by project (not by SKU),
+// so the per-resource breakdown does not appear here — only the project's
+// aggregate Amount. ProjectID / Project / Description are snapshotted at issue
+// time so the line stays stable even if the project is later renamed or deleted.
 type InvoiceLineItem struct {
-	SKU         string  `json:"sku" yaml:"sku"`
-	Description string  `json:"description" yaml:"description"`
-	Quantity    float64 `json:"quantity" yaml:"quantity"`
-	Unit        string  `json:"unit" yaml:"unit"`
-	// UnitPrice is the per-Unit rate charged for this line. Quantity is the
-	// billed usage (free-tier units already deducted), so Amount =
-	// UnitPrice * Quantity.
-	UnitPrice float64 `json:"unitPrice" yaml:"unitPrice"`
-	Amount    float64 `json:"amount" yaml:"amount"`
+	// ProjectID is the billed project's id, snapshotted at issue time.
+	ProjectID int64 `json:"projectId,string" yaml:"projectId"`
+	// Project is the project's sid (stable slug), snapshotted at issue time.
+	Project string `json:"project" yaml:"project"`
+	// Description is the project's display name at issue time (falls back to the
+	// sid when the project has no name).
+	Description string `json:"description" yaml:"description"`
+	// Amount is the project's total charge for the period (gross, VAT-inclusive).
+	Amount float64 `json:"amount" yaml:"amount"`
 }
 
 type InvoiceItem struct {
