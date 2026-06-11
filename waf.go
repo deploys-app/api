@@ -28,6 +28,7 @@ type WAF interface {
 	Set(ctx context.Context, m *WAFSet) (*Empty, error)
 	Delete(ctx context.Context, m *WAFDelete) (*Empty, error)
 	Metrics(ctx context.Context, m *WAFMetrics) (*WAFMetricsResult, error)
+	LimitMetrics(ctx context.Context, m *WAFLimitMetrics) (*WAFLimitMetricsResult, error)
 }
 
 // WAFRule mirrors parapet's waf.Rule. Expression is a CEL expression returning
@@ -360,4 +361,40 @@ type WAFMetricsSeries struct {
 	Action string       `json:"action" yaml:"action"`
 	Total  float64      `json:"total" yaml:"total"`   // this series' sum over the range
 	Points [][2]float64 `json:"points" yaml:"points"` // [unixSeconds, count], time-ordered
+}
+
+// WAFLimitMetrics reads a zone's rate-limit decision counts
+// (parapet_ratelimit_total, collected per minute into the apiserver) over a
+// time range. Series come per (limit, result) so the caller can chart the
+// limited share — limited / (allowed + limited) — which is how a shadow-mode
+// limit is sized before it is enforced.
+type WAFLimitMetrics struct {
+	Project   string              `json:"project" yaml:"project"`
+	Location  string              `json:"location" yaml:"location"`
+	TimeRange WAFMetricsTimeRange `json:"timeRange" yaml:"timeRange"`
+}
+
+func (m *WAFLimitMetrics) Valid() error {
+	v := validator.New()
+
+	v.Must(m.Project != "", "project required")
+	v.Must(m.Location != "", "location required")
+	v.Must(validWAFMetricsTimeRange[m.TimeRange], "timeRange invalid")
+
+	return WrapValidate(v)
+}
+
+// WAFLimitMetricsResult mirrors WAFMetricsResult at the (limit, result) grain.
+// LimitID is the short, project-local id, matching WAF.Get so the caller can
+// join a series to its limit.
+type WAFLimitMetricsResult struct {
+	Series []*WAFLimitMetricsSeries `json:"series" yaml:"series"`
+	Total  float64                  `json:"total" yaml:"total"`
+}
+
+type WAFLimitMetricsSeries struct {
+	LimitID string       `json:"limitId" yaml:"limitId"`
+	Result  string       `json:"result" yaml:"result"` // allowed|limited
+	Total   float64      `json:"total" yaml:"total"`   // this series' sum over the range
+	Points  [][2]float64 `json:"points" yaml:"points"` // [unixSeconds, count], time-ordered
 }
