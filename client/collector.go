@@ -54,3 +54,12 @@ func (c collectorClient) SetWAFUsage(ctx context.Context, m *api.CollectorSetWAF
 	}
 	return &res, nil
 }
+
+func (c collectorClient) SetRateLimitUsage(ctx context.Context, m *api.CollectorSetRateLimitUsage) (*api.Empty, error) {
+	var res api.Empty
+	err := c.inv.invoke(ctx, "collector.setRateLimitUsage", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
