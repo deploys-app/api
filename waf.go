@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -112,7 +111,6 @@ type WAFLimit struct {
 	Mode      string   `json:"mode" yaml:"mode,omitempty"`           // "" = enforce | shadow
 	Status    int      `json:"status" yaml:"status,omitempty"`       // 0 = default 429 | 503
 	Message   string   `json:"message" yaml:"message,omitempty"`     // "" = default "Too Many Requests"
-	Exclude   []string `json:"exclude" yaml:"exclude,omitempty"`     // CIDRs whose client ip skips this limit
 }
 
 // wafLimitKeyTakesName lists the key characteristics that take a :<name>
@@ -194,11 +192,6 @@ func validWAFLimits(v *validator.Validator, limits []WAFLimit) {
 		v.Mustf(l.Mode == "" || l.Mode == "enforce" || l.Mode == "shadow", "limit %s: mode invalid (want enforce|shadow)", ref)
 		v.Mustf(l.Status == 0 || l.Status == 429 || l.Status == 503, "limit %s: status invalid (want 429 or 503)", ref)
 		v.Mustf(utf8.RuneCountInString(l.Message) <= WAFMaxMessageLength, "limit %s: message must not exceed %d characters", ref, WAFMaxMessageLength)
-
-		for _, cidr := range l.Exclude {
-			_, _, err := net.ParseCIDR(cidr)
-			v.Mustf(err == nil, "limit %s: exclude cidr %q invalid", ref, cidr)
-		}
 	}
 }
 
