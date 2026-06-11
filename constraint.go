@@ -2,6 +2,7 @@ package api
 
 import (
 	"regexp"
+	"time"
 )
 
 const (
@@ -36,4 +37,12 @@ const (
 	WAFMaxRuleIDLength     = 64
 	WAFMaxExpressionLength = 2048
 	WAFMaxMessageLength    = 256
+
+	// Rate limits (parapet ratelimitrule): limit ids label parapet metric
+	// series, so parapet caps them at 63 chars; the window bounds mirror
+	// parapet's 1s..1h cap on per-key counter retention.
+	WAFMaxLimits        = 20
+	WAFMaxLimitIDLength = 63
+	WAFLimitMinWindow   = time.Second
+	WAFLimitMaxWindow   = time.Hour
 )

@@ -89,6 +89,112 @@ func validWAFRules(v *validator.Validator, rules []WAFRule) {
 	}
 }
 
+// WAFLimit mirrors parapet's ratelimitrule.Limit: one rate limit evaluated for
+// every request the zone covers. Limits live on the same zone as the rules but
+// materialize into a separate parapet ratelimit zone (label/annotation pair
+// parapet.moonrhythm.io/ratelimit{,-zone}); see the parapet-ingress-controller
+// ratelimitrule package for the engine.
+//
+// ID is server-managed exactly like WAFRule.ID: send "" for a new limit, echo
+// the existing id to keep a limit's identity (and its live counters / metric
+// series) across edits.
+type WAFLimit struct {
+	ID          string `json:"id" yaml:"id"`
+	Description string `json:"description" yaml:"description"`
+	// Key lists the characteristics composed into the bucket key (default
+	// ["ip"]): ip, host, asn, country, header:<name>, cookie:<name>
+	// ("ip-host" is accepted as an alias for ip + host).
+	Key       []string `json:"key" yaml:"key"`
+	Rate      int      `json:"rate" yaml:"rate"`                     // max requests per Window per key; > 0
+	Window    string   `json:"window" yaml:"window"`                 // Go duration, 1s..1h
+	Algorithm string   `json:"algorithm" yaml:"algorithm,omitempty"` // "" = fixed | sliding
+	Mode      string   `json:"mode" yaml:"mode,omitempty"`           // "" = enforce | shadow
+	Status    int      `json:"status" yaml:"status,omitempty"`       // 0 = default 429 | 503
+	Message   string   `json:"message" yaml:"message,omitempty"`     // "" = default "Too Many Requests"
+}
+
+// wafLimitKeyTakesName lists the key characteristics that take a :<name>
+// suffix; wafLimitBareKeys those that don't.
+var (
+	wafLimitKeyTakesName = map[string]bool{"header": true, "cookie": true}
+	wafLimitBareKeys     = map[string]bool{"ip": true, "host": true, "ip-host": true, "asn": true, "country": true}
+)
+
+// validWAFLimitFieldName reports whether a header/cookie name is a valid HTTP
+// token (RFC 7230), mirroring parapet's validateFieldName.
+func validWAFLimitFieldName(name string) bool {
+	if name == "" {
+		return false
+	}
+	for i := 0; i < len(name); i++ {
+		switch c := name[i]; {
+		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9':
+		case strings.IndexByte("!#$%&'*+-.^_`|~", c) >= 0:
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// validWAFLimits validates the structural contract of a limit set, mirroring
+// parapet's SetLimits checks so a batch the API accepts also compiles in the
+// controller (all-or-nothing, like the rules).
+func validWAFLimits(v *validator.Validator, limits []WAFLimit) {
+	v.Mustf(len(limits) <= WAFMaxLimits, "limits must not exceed %d limits", WAFMaxLimits)
+
+	seen := make(map[string]bool, len(limits))
+	for i := range limits {
+		l := &limits[i]
+		l.ID = strings.TrimSpace(l.ID)
+		l.Window = strings.TrimSpace(l.Window)
+
+		ref := l.ID
+		if ref == "" {
+			ref = "#" + strconv.Itoa(i)
+		}
+
+		// ID is server-managed (see WAFLimit): "" means "generate one".
+		if l.ID != "" {
+			v.Mustf(ReValidWAFRuleID.MatchString(l.ID), "limit %s: id invalid "+ReValidWAFRuleIDStr, ref)
+			v.Mustf(utf8.RuneCountInString(l.ID) <= WAFMaxLimitIDLength, "limit %s: id must not exceed %d characters", ref, WAFMaxLimitIDLength)
+			v.Mustf(!seen[l.ID], "limit %s: duplicate id", ref)
+			seen[l.ID] = true
+		}
+
+		for _, k := range l.Key {
+			key, name, hasName := strings.Cut(k, ":")
+			switch {
+			case hasName && wafLimitKeyTakesName[key]:
+				v.Mustf(validWAFLimitFieldName(name), "limit %s: key %s: invalid name", ref, key)
+			case hasName:
+				v.Mustf(false, "limit %s: key %q does not take a :<name> suffix", ref, key)
+			case wafLimitKeyTakesName[key]:
+				v.Mustf(false, "limit %s: key %s: missing name (want %s:<name>)", ref, key, key)
+			default:
+				v.Mustf(wafLimitBareKeys[key], "limit %s: unknown key %q (want ip|host|asn|country|header:<name>|cookie:<name>)", ref, k)
+			}
+		}
+
+		v.Mustf(l.Rate > 0, "limit %s: rate must be greater than 0", ref)
+
+		v.Mustf(l.Window != "", "limit %s: window required", ref)
+		if l.Window != "" {
+			d, err := time.ParseDuration(l.Window)
+			if err != nil {
+				v.Mustf(false, "limit %s: window invalid", ref)
+			} else {
+				v.Mustf(d >= WAFLimitMinWindow && d <= WAFLimitMaxWindow, "limit %s: window out of bounds (want %s..%s)", ref, WAFLimitMinWindow, WAFLimitMaxWindow)
+			}
+		}
+
+		v.Mustf(l.Algorithm == "" || l.Algorithm == "fixed" || l.Algorithm == "sliding", "limit %s: algorithm invalid (want fixed|sliding)", ref)
+		v.Mustf(l.Mode == "" || l.Mode == "enforce" || l.Mode == "shadow", "limit %s: mode invalid (want enforce|shadow)", ref)
+		v.Mustf(l.Status == 0 || l.Status == 429 || l.Status == 503, "limit %s: status invalid (want 429 or 503)", ref)
+		v.Mustf(utf8.RuneCountInString(l.Message) <= WAFMaxMessageLength, "limit %s: message must not exceed %d characters", ref, WAFMaxMessageLength)
+	}
+}
+
 type WAFGet struct {
 	Project  string `json:"project" yaml:"project"`
 	Location string `json:"location" yaml:"location"`
@@ -103,14 +209,15 @@ func (m *WAFGet) Valid() error {
 	return WrapValidate(v)
 }
 
-// WAFSet upserts the project's zone, replacing the whole ruleset. Mirrors
-// parapet's all-or-nothing SetRules: one bad rule rejects the batch and the
-// previous good ruleset stays live.
+// WAFSet upserts the project's zone, replacing the whole ruleset and limit
+// set. Mirrors parapet's all-or-nothing SetRules/SetLimits: one bad rule or
+// limit rejects the batch and the previous good set stays live.
 type WAFSet struct {
-	Project     string    `json:"project" yaml:"project"`
-	Location    string    `json:"location" yaml:"location"`
-	Description string    `json:"description" yaml:"description"`
-	Rules       []WAFRule `json:"rules" yaml:"rules"`
+	Project     string     `json:"project" yaml:"project"`
+	Location    string     `json:"location" yaml:"location"`
+	Description string     `json:"description" yaml:"description"`
+	Rules       []WAFRule  `json:"rules" yaml:"rules"`
+	Limits      []WAFLimit `json:"limits" yaml:"limits"`
 }
 
 func (m *WAFSet) Valid() error {
@@ -119,6 +226,7 @@ func (m *WAFSet) Valid() error {
 	v.Must(m.Project != "", "project required")
 	v.Must(m.Location != "", "location required")
 	validWAFRules(v, m.Rules)
+	validWAFLimits(v, m.Limits)
 
 	return WrapValidate(v)
 }
@@ -156,12 +264,13 @@ type WAFListResult struct {
 
 func (m *WAFListResult) Table() [][]string {
 	table := [][]string{
-		{"LOCATION", "RULES", "STATUS", "AGE"},
+		{"LOCATION", "RULES", "LIMITS", "STATUS", "AGE"},
 	}
 	for _, x := range m.Items {
 		table = append(table, []string{
 			x.Location,
 			strconv.Itoa(len(x.Rules)),
+			strconv.Itoa(len(x.Limits)),
 			x.Status.Text(),
 			age(x.CreatedAt),
 		})
@@ -170,10 +279,11 @@ func (m *WAFListResult) Table() [][]string {
 }
 
 type WAFItem struct {
-	Project     string    `json:"project" yaml:"project"`
-	Location    string    `json:"location" yaml:"location"`
-	Description string    `json:"description" yaml:"description"`
-	Rules       []WAFRule `json:"rules" yaml:"rules"`
+	Project     string     `json:"project" yaml:"project"`
+	Location    string     `json:"location" yaml:"location"`
+	Description string     `json:"description" yaml:"description"`
+	Rules       []WAFRule  `json:"rules" yaml:"rules"`
+	Limits      []WAFLimit `json:"limits" yaml:"limits"`
 	// Status and Action expose the materialization state: Status is Pending
 	// while the deployer is (un)applying the zone and Success once live; Action
 	// is Create (set) or Delete (tearing down). Both are read-only.
@@ -185,11 +295,12 @@ type WAFItem struct {
 
 func (m *WAFItem) Table() [][]string {
 	table := [][]string{
-		{"PROJECT", "LOCATION", "RULES", "STATUS", "AGE"},
+		{"PROJECT", "LOCATION", "RULES", "LIMITS", "STATUS", "AGE"},
 		{
 			m.Project,
 			m.Location,
 			strconv.Itoa(len(m.Rules)),
+			strconv.Itoa(len(m.Limits)),
 			m.Status.Text(),
 			age(m.CreatedAt),
 		},

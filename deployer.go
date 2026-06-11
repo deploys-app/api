@@ -169,20 +169,29 @@ type DeployerCommandDomainCertDelete struct {
 // parapet.moonrhythm.io/waf: zone) holding the rules, and bind every one of the
 // project's Ingresses in this location via the parapet.moonrhythm.io/waf-zone
 // annotation. Issued when waf_zones.action is Create or Update.
+//
+// Limits materialize the same way into a separate parapet ratelimit zone
+// ConfigMap (name = RateLimitZoneID, labeled parapet.moonrhythm.io/ratelimit:
+// zone) bound via the parapet.moonrhythm.io/ratelimit-zone annotation. An
+// empty Limits removes that ConfigMap and annotation, so the parapet
+// controller drops the zone entirely instead of keeping an empty set.
 type DeployerCommandWAFSet struct {
-	ID        int64     `json:"id"`
-	ProjectID int64     `json:"projectId"`
-	ZoneID    string    `json:"zoneId"`
-	Rules     []WAFRule `json:"rules"`
+	ID              int64      `json:"id"`
+	ProjectID       int64      `json:"projectId"`
+	ZoneID          string     `json:"zoneId"`
+	RateLimitZoneID string     `json:"rateLimitZoneId"`
+	Rules           []WAFRule  `json:"rules"`
+	Limits          []WAFLimit `json:"limits"`
 }
 
 // DeployerCommandWAFDelete asks the location's deployer to remove the project's
-// WAF zone ConfigMap and strip the waf-zone annotation from its Ingresses.
-// Issued when waf_zones.action is Delete.
+// WAF zone and ratelimit zone ConfigMaps and strip the waf-zone/ratelimit-zone
+// annotations from its Ingresses. Issued when waf_zones.action is Delete.
 type DeployerCommandWAFDelete struct {
-	ID        int64  `json:"id"`
-	ProjectID int64  `json:"projectId"`
-	ZoneID    string `json:"zoneId"`
+	ID              int64  `json:"id"`
+	ProjectID       int64  `json:"projectId"`
+	ZoneID          string `json:"zoneId"`
+	RateLimitZoneID string `json:"rateLimitZoneId"`
 }
 
 type DeployerSetResult []*DeployerSetResultItem
