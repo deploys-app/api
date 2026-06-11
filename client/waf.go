@@ -49,3 +49,12 @@ func (c wafClient) Metrics(ctx context.Context, m *api.WAFMetrics) (*api.WAFMetr
 	}
 	return &res, nil
 }
+
+func (c wafClient) LimitMetrics(ctx context.Context, m *api.WAFLimitMetrics) (*api.WAFLimitMetricsResult, error) {
+	var res api.WAFLimitMetricsResult
+	err := c.inv.invoke(ctx, "waf.limitMetrics", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
