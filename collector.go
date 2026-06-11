@@ -10,6 +10,7 @@ type Collector interface {
 	SetDeploymentUsage(ctx context.Context, m *CollectorSetDeploymentUsage) (*Empty, error)
 	SetDiskUsage(ctx context.Context, m *CollectorSetDiskUsage) (*Empty, error)
 	SetWAFUsage(ctx context.Context, m *CollectorSetWAFUsage) (*Empty, error)
+	SetRateLimitUsage(ctx context.Context, m *CollectorSetRateLimitUsage) (*Empty, error)
 }
 
 type CollectorLocation struct {
@@ -86,4 +87,23 @@ type CollectorWAFUsageItem struct {
 	Action    string  `json:"action" yaml:"action"` // log|allow|block
 	Value     float64 `json:"value" yaml:"value"`   // match count in the window
 	At        int64   `json:"at" yaml:"at"`         // unix second, minute-aligned bucket
+}
+
+// CollectorSetRateLimitUsage upserts zone rate-limit decision counts collected
+// from parapet's parapet_ratelimit_total counter. Each item is one
+// (limit_id, result) bucket for a minute; the collector parses ProjectID from
+// the project-prefixed LimitID (<projectID>-<rand>, the same scheme as WAF
+// rule ids). Upserted by (location, project, limitId, result, at) so
+// back-fill re-runs are idempotent.
+type CollectorSetRateLimitUsage struct {
+	Location string                         `json:"location" yaml:"location"`
+	List     []*CollectorRateLimitUsageItem `json:"list" yaml:"list"`
+}
+
+type CollectorRateLimitUsageItem struct {
+	ProjectID int64   `json:"projectId,string" yaml:"projectId"`
+	LimitID   string  `json:"limitId" yaml:"limitId"` // full generated id (<projectID>-<rand>)
+	Result    string  `json:"result" yaml:"result"`   // allowed|limited
+	Value     float64 `json:"value" yaml:"value"`     // decision count in the window
+	At        int64   `json:"at" yaml:"at"`           // unix second, minute-aligned bucket
 }
