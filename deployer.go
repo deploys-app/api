@@ -72,9 +72,18 @@ type DeployerCommandDeploymentMetadata struct {
 }
 
 type DeployerCommandDeploymentDeploy struct {
-	ID            int64                                        `json:"id"`
-	ProjectID     int64                                        `json:"projectId"`
-	Name          string                                       `json:"name"`
+	ID        int64 `json:"id"`
+	ProjectID int64 `json:"projectId"`
+	// Name is the k8s resource name prefix: the deployer derives every object
+	// name from it (<Name>-<ProjectID>). For deployments created before
+	// id-based naming it equals the display name; newer deployments use the
+	// server-assigned resource name (0d<id>), which can never collide with a
+	// display name (display names must start with a letter).
+	Name string `json:"name"`
+	// DisplayName is the user-facing deployment name, used only for cosmetic
+	// surfaces (K_SERVICE/K_CONFIGURATION env, deploys.app/name annotation).
+	// Empty on commands from apiservers that predate it — fall back to Name.
+	DisplayName   string                                       `json:"displayName"`
 	Revision      int64                                        `json:"revision"`
 	Type          DeploymentType                               `json:"type"`
 	BillingConfig DeployerCommandDeploymentDeployBillingConfig `json:"config"`

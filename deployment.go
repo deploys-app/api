@@ -211,8 +211,8 @@ type DeploymentDeploy struct {
 	MaxReplicas      *int                `json:"maxReplicas" yaml:"maxReplicas"`
 	Type             DeploymentType      `json:"type" yaml:"type"`
 	Port             *int                `json:"port" yaml:"port"`
-	Protocol         *DeploymentProtocol `json:"protocol" yaml:"protocol"`   // protocol for WebService
-	Internal         *bool               `json:"internal" yaml:"internal"`   // run WebService as internal service
+	Protocol         *DeploymentProtocol `json:"protocol" yaml:"protocol"`               // protocol for WebService
+	Internal         *bool               `json:"internal" yaml:"internal"`               // run WebService as internal service
 	Env              map[string]string   `json:"env" yaml:"env"`                         // override all env
 	AddEnv           map[string]string   `json:"addEnv" yaml:"addEnv"`                   // add env to old revision env
 	RemoveEnv        []string            `json:"removeEnv" yaml:"removeEnv"`             // remove env from old revision env
@@ -254,7 +254,7 @@ func (m *DeploymentDeploy) Valid() error {
 	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
 	{
 		cnt := utf8.RuneCountInString(m.Name)
-		v.Mustf(cnt >= MinNameLength && cnt <= MaxNameLength, "name must have length between %d-%d characters", MinNameLength, MaxNameLength)
+		v.Mustf(cnt >= MinNameLength && cnt <= DeploymentMaxNameLength, "name must have length between %d-%d characters", MinNameLength, DeploymentMaxNameLength)
 	}
 
 	if v.Must(m.Image != "", "image required") {
@@ -441,7 +441,7 @@ func (m *DeploymentGet) Valid() error {
 	v.Must(m.Project != "", "project required")
 	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
 	// allow old spec long name
-	v.Mustf(utf8.RuneCountInString(m.Name) <= MaxNameLength*2, "name must have length less then %d characters", MaxNameLength*2)
+	v.Mustf(utf8.RuneCountInString(m.Name) <= DeploymentMaxNameLength*2, "name must have length less then %d characters", DeploymentMaxNameLength*2)
 	v.Must(m.Revision >= 0, "invalid revision")
 
 	return WrapValidate(v)
@@ -462,7 +462,7 @@ func (m *DeploymentRevisions) Valid() error {
 	v.Must(m.Project != "", "project required")
 	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
 	// allow old spec long name
-	v.Mustf(utf8.RuneCountInString(m.Name) <= MaxNameLength*2, "name must have length less then %d characters", MaxNameLength*2)
+	v.Mustf(utf8.RuneCountInString(m.Name) <= DeploymentMaxNameLength*2, "name must have length less then %d characters", DeploymentMaxNameLength*2)
 
 	return WrapValidate(v)
 }
@@ -486,7 +486,7 @@ func (m *DeploymentResume) Valid() error {
 	v.Must(m.Project != "", "project required")
 	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
 	// allow old spec long name
-	v.Mustf(utf8.RuneCountInString(m.Name) <= MaxNameLength*2, "name must have length less then %d characters", MaxNameLength*2)
+	v.Mustf(utf8.RuneCountInString(m.Name) <= DeploymentMaxNameLength*2, "name must have length less then %d characters", DeploymentMaxNameLength*2)
 
 	return WrapValidate(v)
 }
@@ -506,7 +506,7 @@ func (m *DeploymentPause) Valid() error {
 	v.Must(m.Project != "", "project required")
 	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
 	// allow old spec long name
-	v.Mustf(utf8.RuneCountInString(m.Name) <= MaxNameLength*2, "name must have length less then %d characters", MaxNameLength*2)
+	v.Mustf(utf8.RuneCountInString(m.Name) <= DeploymentMaxNameLength*2, "name must have length less then %d characters", DeploymentMaxNameLength*2)
 
 	return WrapValidate(v)
 }
@@ -527,7 +527,7 @@ func (m *DeploymentRollback) Valid() error {
 	v.Must(m.Project != "", "project required")
 	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
 	// allow old spec long name
-	v.Mustf(utf8.RuneCountInString(m.Name) <= MaxNameLength*2, "name must have length less then %d characters", MaxNameLength*2)
+	v.Mustf(utf8.RuneCountInString(m.Name) <= DeploymentMaxNameLength*2, "name must have length less then %d characters", DeploymentMaxNameLength*2)
 	v.Must(m.Revision >= 1, "invalid revision")
 
 	return WrapValidate(v)
@@ -548,7 +548,7 @@ func (m *DeploymentDelete) Valid() error {
 	v.Must(m.Project != "", "project required")
 	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
 	// allow old spec long name
-	v.Mustf(utf8.RuneCountInString(m.Name) <= MaxNameLength*2, "name must have length less then %d characters", MaxNameLength*2)
+	v.Mustf(utf8.RuneCountInString(m.Name) <= DeploymentMaxNameLength*2, "name must have length less then %d characters", DeploymentMaxNameLength*2)
 
 	return WrapValidate(v)
 }
@@ -606,7 +606,7 @@ func (m *DeploymentMetrics) Valid() error {
 	v.Must(m.Location != "", "location required")
 	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
 	// allow old spec long name
-	v.Mustf(utf8.RuneCountInString(m.Name) <= MaxNameLength*2, "name must have length less then %d characters", MaxNameLength*2)
+	v.Mustf(utf8.RuneCountInString(m.Name) <= DeploymentMaxNameLength*2, "name must have length less then %d characters", DeploymentMaxNameLength*2)
 	v.Must(m.Project != "", "project required")
 	v.Must(validDeploymentMetricsTimeRange[m.TimeRange], "timeRange invalid")
 
