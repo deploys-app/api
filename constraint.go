@@ -29,6 +29,12 @@ const (
 	DeploymentMinReplicas = 1
 	DeploymentMaxReplicas = 20
 	DiskMaxSize           = 100
+
+	// DeploymentMaxNameLength is the deployment-specific name cap. Deployment
+	// names are display names only — k8s objects are named by the deployment's
+	// server-assigned resource name (0d<id>), so the name no longer has to fit
+	// k8s DNS-label budgets like other resources (which keep MaxNameLength).
+	DeploymentMaxNameLength = 63
 )
 
 // WAF
