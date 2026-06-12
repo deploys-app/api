@@ -47,6 +47,17 @@ type GitHub interface {
 	// bearer token), not by a deploys identity: the token's repository claims
 	// are authoritative and the reported sha must match the token's sha claim.
 	Notify(ctx context.Context, m *GitHubNotify) (*Empty, error)
+
+	// AddInstallation remembers a GitHub App installation id for a project.
+	// The console calls this when GitHub's post-install setup redirect returns
+	// with ?installation_id= so users do not have to re-install to see their
+	// repo list later.
+	AddInstallation(ctx context.Context, m *GitHubAddInstallation) (*Empty, error)
+
+	// ListInstallations returns all GitHub App installation ids recorded for a
+	// project, so the console can populate a picker without asking users for an
+	// installation id.
+	ListInstallations(ctx context.Context, m *GitHubListInstallations) (*GitHubListInstallationsResult, error)
 }
 
 // ReValidGitHubRepository validates an "owner/name" GitHub repository full name.
@@ -275,4 +286,57 @@ func (m *GitHubNotify) Valid() error {
 	}
 
 	return WrapValidate(v)
+}
+
+// GitHubAddInstallation is the request type for GitHub.AddInstallation.
+// Both project and installationId are required.
+type GitHubAddInstallation struct {
+	Project        string `json:"project" yaml:"project"`
+	InstallationID int64  `json:"installationId" yaml:"installationId"`
+}
+
+func (m *GitHubAddInstallation) Valid() error {
+	v := validator.New()
+
+	v.Must(m.Project != "", "project required")
+	v.Must(m.InstallationID > 0, "installationId required")
+
+	return WrapValidate(v)
+}
+
+// GitHubListInstallations is the request type for GitHub.ListInstallations.
+type GitHubListInstallations struct {
+	Project string `json:"project" yaml:"project"`
+}
+
+func (m *GitHubListInstallations) Valid() error {
+	v := validator.New()
+
+	v.Must(m.Project != "", "project required")
+
+	return WrapValidate(v)
+}
+
+// GitHubInstallationItem holds a single recorded GitHub App installation id.
+type GitHubInstallationItem struct {
+	InstallationID int64     `json:"installationId" yaml:"installationId"`
+	CreatedAt      time.Time `json:"createdAt" yaml:"createdAt"`
+}
+
+// GitHubListInstallationsResult is the response type for GitHub.ListInstallations.
+type GitHubListInstallationsResult struct {
+	Items []*GitHubInstallationItem `json:"items" yaml:"items"`
+}
+
+func (m *GitHubListInstallationsResult) Table() [][]string {
+	table := [][]string{
+		{"INSTALLATION ID", "AGE"},
+	}
+	for _, x := range m.Items {
+		table = append(table, []string{
+			strconv.FormatInt(x.InstallationID, 10),
+			age(x.CreatedAt),
+		})
+	}
+	return table
 }
