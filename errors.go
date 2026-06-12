@@ -70,6 +70,7 @@ var (
 	ErrGitHubSHAMismatch             = newError("api: github sha does not match token")
 	ErrGitHubProjectMismatch         = newError("api: github project does not match repository link")
 	ErrGitHubAppNotInstalled         = newError("api: github app is not installed on the repository")
+	ErrGitHubBranchNotAllowed        = newError("api: github ref is not the configured production branch")
 )
 
 var AllErrors []error
