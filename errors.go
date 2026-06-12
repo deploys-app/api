@@ -69,6 +69,7 @@ var (
 	ErrGitHubTokenInvalid            = newError("api: github token invalid")
 	ErrGitHubSHAMismatch             = newError("api: github sha does not match token")
 	ErrGitHubProjectMismatch         = newError("api: github project does not match repository link")
+	ErrGitHubAppNotInstalled         = newError("api: github app is not installed on the repository")
 )
 
 var AllErrors []error
