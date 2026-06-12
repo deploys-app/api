@@ -21,4 +21,5 @@ type Interface interface {
 	Deployer() Deployer
 	AuditLog() AuditLog
 	Dropbox() Dropbox
+	GitHub() GitHub
 }
