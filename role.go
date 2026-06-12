@@ -90,6 +90,10 @@ var permissions = []string{
 	"waf.delete",
 	"auditlog.*",
 	"auditlog.list",
+	"github.*",
+	"github.link",
+	"github.unlink",
+	"github.list",
 }
 
 func Permissions() []string {
