@@ -16,6 +16,13 @@ type GitHub interface {
 	Unlink(ctx context.Context, m *GitHubUnlink) (*Empty, error)
 	List(ctx context.Context, m *GitHubList) (*GitHubListResult, error)
 
+	// LookupRepo resolves an owner/name repository to its immutable numeric
+	// id and the deploys.app GitHub App installation covering it, so link
+	// callers (the console) never ask users for a repository id. It also
+	// proves the App is installed on the repository — the lookup fails
+	// otherwise.
+	LookupRepo(ctx context.Context, m *GitHubLookupRepo) (*GitHubLookupRepoResult, error)
+
 	// ExchangeToken exchanges a GitHub Actions OIDC token for a short-lived
 	// deploys token acting as the service account linked to the repository.
 	// It is authenticated by the GitHub token itself, not by the caller's
@@ -118,6 +125,31 @@ func (m *GitHubListResult) Table() [][]string {
 		})
 	}
 	return table
+}
+
+type GitHubLookupRepo struct {
+	Project    string `json:"project" yaml:"project"`
+	Repository string `json:"repository" yaml:"repository"` // owner/name
+}
+
+func (m *GitHubLookupRepo) Valid() error {
+	m.Repository = strings.TrimSpace(m.Repository)
+
+	v := validator.New()
+
+	v.Must(m.Project != "", "project required")
+	if v.Must(m.Repository != "", "repository required") {
+		v.Must(utf8.RuneCountInString(m.Repository) <= 140, "repository too long")
+		v.Must(ReValidGitHubRepository.MatchString(m.Repository), "repository must be in owner/name format")
+	}
+
+	return WrapValidate(v)
+}
+
+type GitHubLookupRepoResult struct {
+	RepositoryID   int64  `json:"repositoryId" yaml:"repositoryId"`
+	Repository     string `json:"repository" yaml:"repository"` // canonical owner/name from GitHub
+	InstallationID int64  `json:"installationId" yaml:"installationId"`
 }
 
 type GitHubExchangeToken struct {

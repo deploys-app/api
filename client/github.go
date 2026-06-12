@@ -37,6 +37,15 @@ func (c githubClient) List(ctx context.Context, m *api.GitHubList) (*api.GitHubL
 	return &res, nil
 }
 
+func (c githubClient) LookupRepo(ctx context.Context, m *api.GitHubLookupRepo) (*api.GitHubLookupRepoResult, error) {
+	var res api.GitHubLookupRepoResult
+	err := c.inv.invoke(ctx, "github.lookupRepo", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 func (c githubClient) ExchangeToken(ctx context.Context, m *api.GitHubExchangeToken) (*api.GitHubExchangeTokenResult, error) {
 	var res api.GitHubExchangeTokenResult
 	err := c.inv.invoke(ctx, "github.exchangeToken", m, &res)
