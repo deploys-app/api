@@ -45,3 +45,12 @@ func (c githubClient) ExchangeToken(ctx context.Context, m *api.GitHubExchangeTo
 	}
 	return &res, nil
 }
+
+func (c githubClient) Notify(ctx context.Context, m *api.GitHubNotify) (*api.Empty, error) {
+	var res api.Empty
+	err := c.inv.invoke(ctx, "github.notify", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
