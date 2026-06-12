@@ -67,6 +67,8 @@ var (
 	ErrGitHubRepoAlreadyLinked       = newError("api: github repository already linked")
 	ErrGitHubRepoLinkNotFound        = newError("api: github repository link not found")
 	ErrGitHubTokenInvalid            = newError("api: github token invalid")
+	ErrGitHubSHAMismatch             = newError("api: github sha does not match token")
+	ErrGitHubProjectMismatch         = newError("api: github project does not match repository link")
 )
 
 var AllErrors []error

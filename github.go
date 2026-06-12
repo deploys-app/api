@@ -21,6 +21,14 @@ type GitHub interface {
 	// It is authenticated by the GitHub token itself, not by the caller's
 	// deploys identity.
 	ExchangeToken(ctx context.Context, m *GitHubExchangeToken) (*GitHubExchangeTokenResult, error)
+
+	// Notify reports build/deploy progress from a GitHub Actions workflow run
+	// so the server can drive GitHub deployment statuses and the PR preview
+	// comment as the deploys.app GitHub App. Like ExchangeToken it is
+	// authenticated by the workflow's GitHub Actions OIDC token (sent as the
+	// bearer token), not by a deploys identity: the token's repository claims
+	// are authoritative and the reported sha must match the token's sha claim.
+	Notify(ctx context.Context, m *GitHubNotify) (*Empty, error)
 }
 
 // ReValidGitHubRepository validates an "owner/name" GitHub repository full name.
@@ -129,4 +137,46 @@ func (m *GitHubExchangeToken) Valid() error {
 type GitHubExchangeTokenResult struct {
 	Token     string    `json:"token" yaml:"token"`
 	ExpiresAt time.Time `json:"expiresAt" yaml:"expiresAt"`
+}
+
+// ReValidGitHubEnvironment validates a notify environment: "production" or
+// "pr-<n>" (the transient preview environment for pull request n).
+var ReValidGitHubEnvironment = regexp.MustCompile(`^(production|pr-[1-9][0-9]*)$`)
+
+type GitHubNotify struct {
+	Event       string `json:"event" yaml:"event"`             // started | success | failure
+	Project     string `json:"project" yaml:"project"`         // must match the repository link
+	Location    string `json:"location" yaml:"location"`       // deployment location id
+	Deployment  string `json:"deployment" yaml:"deployment"`   // deploys.app deployment name
+	Environment string `json:"environment" yaml:"environment"` // production | pr-<n>
+	PRNumber    int64  `json:"prNumber" yaml:"prNumber"`       // 0 for production
+	SHA         string `json:"sha" yaml:"sha"`                 // must equal the token's sha claim
+	Ref         string `json:"ref" yaml:"ref"`
+	URL         string `json:"url" yaml:"url"`     // success only: the deployed url
+	Image       string `json:"image" yaml:"image"` // success only: the deployed image (digest form)
+}
+
+func (m *GitHubNotify) Valid() error {
+	m.Project = strings.TrimSpace(m.Project)
+	m.Location = strings.TrimSpace(m.Location)
+	m.Deployment = strings.TrimSpace(m.Deployment)
+	m.Environment = strings.TrimSpace(m.Environment)
+	m.SHA = strings.TrimSpace(m.SHA)
+
+	v := validator.New()
+
+	v.Must(m.Event == "started" || m.Event == "success" || m.Event == "failure", "event must be started, success, or failure")
+	v.Must(m.Project != "", "project required")
+	v.Must(m.Location != "", "location required")
+	v.Must(m.Deployment != "", "deployment required")
+	v.Must(m.SHA != "", "sha required")
+	if v.Must(ReValidGitHubEnvironment.MatchString(m.Environment), "environment must be production or pr-<n>") {
+		if m.Environment == "production" {
+			v.Must(m.PRNumber == 0, "prNumber must be 0 for production")
+		} else {
+			v.Mustf(m.Environment == "pr-"+strconv.FormatInt(m.PRNumber, 10), "environment must match prNumber (pr-%d)", m.PRNumber)
+		}
+	}
+
+	return WrapValidate(v)
 }
