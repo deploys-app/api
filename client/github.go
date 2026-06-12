@@ -81,3 +81,21 @@ func (c githubClient) Notify(ctx context.Context, m *api.GitHubNotify) (*api.Emp
 	}
 	return &res, nil
 }
+
+func (c githubClient) AddInstallation(ctx context.Context, m *api.GitHubAddInstallation) (*api.Empty, error) {
+	var res api.Empty
+	err := c.inv.invoke(ctx, "github.addInstallation", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c githubClient) ListInstallations(ctx context.Context, m *api.GitHubListInstallations) (*api.GitHubListInstallationsResult, error) {
+	var res api.GitHubListInstallationsResult
+	err := c.inv.invoke(ctx, "github.listInstallations", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
