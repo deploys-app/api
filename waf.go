@@ -112,6 +112,15 @@ type WAFLimit struct {
 	Mode      string   `json:"mode" yaml:"mode,omitempty"`           // "" = enforce | shadow
 	Status    int      `json:"status" yaml:"status,omitempty"`       // 0 = default 429 | 503
 	Message   string   `json:"message" yaml:"message,omitempty"`     // "" = default "Too Many Requests"
+	// Filter is an optional CEL expression (the same request.* surface as
+	// WAFRule.Expression) that scopes the limit: empty means every request,
+	// otherwise the limit is evaluated (and counted) only for requests the
+	// expression matches. Like rule expressions it is validated structurally
+	// here and compiled all-or-nothing by the controller; at runtime an eval
+	// error fails OPEN (the limit is skipped), so a buggy filter can never
+	// reject legitimate traffic. request.body is always "" in limit filters
+	// (rate limits run before body buffering).
+	Filter string `json:"filter" yaml:"filter,omitempty"`
 }
 
 // wafLimitKeyTakesName lists the key characteristics that take a :<name>
@@ -193,6 +202,9 @@ func validWAFLimits(v *validator.Validator, limits []WAFLimit) {
 		v.Mustf(l.Mode == "" || l.Mode == "enforce" || l.Mode == "shadow", "limit %s: mode invalid (want enforce|shadow)", ref)
 		v.Mustf(l.Status == 0 || l.Status == 429 || l.Status == 503, "limit %s: status invalid (want 429 or 503)", ref)
 		v.Mustf(utf8.RuneCountInString(l.Message) <= WAFMaxMessageLength, "limit %s: message must not exceed %d characters", ref, WAFMaxMessageLength)
+
+		l.Filter = strings.TrimSpace(l.Filter)
+		v.Mustf(utf8.RuneCountInString(l.Filter) <= WAFMaxExpressionLength, "limit %s: filter must not exceed %d characters", ref, WAFMaxExpressionLength)
 	}
 }
 
