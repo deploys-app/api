@@ -69,11 +69,18 @@ type GitHubLink struct {
 	Repository     string `json:"repository" yaml:"repository"`         // owner/name, display only
 	InstallationID int64  `json:"installationId" yaml:"installationId"` // github app installation id, optional
 	ServiceAccount string `json:"serviceAccount" yaml:"serviceAccount"` // service account sid in the project
+
+	// ProductionBranch is optional. When set, the server only accepts
+	// push-event GitHub OIDC tokens whose ref is this branch —
+	// pull_request events remain allowed for TTL previews. Empty means
+	// no branch restriction.
+	ProductionBranch string `json:"productionBranch" yaml:"productionBranch"`
 }
 
 func (m *GitHubLink) Valid() error {
 	m.Repository = strings.TrimSpace(m.Repository)
 	m.ServiceAccount = strings.TrimSpace(m.ServiceAccount)
+	m.ProductionBranch = strings.TrimSpace(m.ProductionBranch)
 
 	v := validator.New()
 
@@ -88,6 +95,14 @@ func (m *GitHubLink) Valid() error {
 		v.Mustf(ReValidSID.MatchString(m.ServiceAccount), "serviceAccount invalid %s", ReValidSIDStr)
 		cnt := utf8.RuneCountInString(m.ServiceAccount)
 		v.Must(cnt >= 3 && cnt <= 20, "serviceAccount must have length between 3-20 characters")
+	}
+	if m.ProductionBranch != "" { // optional, empty = no restriction
+		v.Must(utf8.RuneCountInString(m.ProductionBranch) <= 255, "productionBranch too long")
+		v.Must(!strings.ContainsAny(m.ProductionBranch, " \t\n\r"), "productionBranch invalid")
+		v.Must(!strings.Contains(m.ProductionBranch, ".."), "productionBranch invalid")
+		v.Must(!strings.HasPrefix(m.ProductionBranch, "/") && !strings.HasSuffix(m.ProductionBranch, "/"), "productionBranch invalid")
+		v.Must(!strings.HasPrefix(m.ProductionBranch, "-"), "productionBranch invalid")
+		v.Must(!strings.HasPrefix(m.ProductionBranch, "refs/"), "productionBranch invalid")
 	}
 
 	return WrapValidate(v)
@@ -125,6 +140,7 @@ type GitHubLinkItem struct {
 	InstallationID      int64     `json:"installationId" yaml:"installationId"`
 	ServiceAccount      string    `json:"serviceAccount" yaml:"serviceAccount"`
 	ServiceAccountEmail string    `json:"serviceAccountEmail" yaml:"serviceAccountEmail"`
+	ProductionBranch    string    `json:"productionBranch" yaml:"productionBranch"` // empty = no restriction
 	CreatedAt           time.Time `json:"createdAt" yaml:"createdAt"`
 	CreatedBy           string    `json:"createdBy" yaml:"createdBy"`
 }
@@ -136,13 +152,18 @@ type GitHubListResult struct {
 
 func (m *GitHubListResult) Table() [][]string {
 	table := [][]string{
-		{"REPOSITORY", "REPOSITORY ID", "SERVICE ACCOUNT", "AGE"},
+		{"REPOSITORY", "REPOSITORY ID", "SERVICE ACCOUNT", "BRANCH", "AGE"},
 	}
 	for _, x := range m.Items {
+		branch := x.ProductionBranch
+		if branch == "" {
+			branch = "-"
+		}
 		table = append(table, []string{
 			x.Repository,
 			strconv.FormatInt(x.RepositoryID, 10),
 			x.ServiceAccount,
+			branch,
 			age(x.CreatedAt),
 		})
 	}
