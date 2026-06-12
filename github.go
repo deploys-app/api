@@ -23,6 +23,17 @@ type GitHub interface {
 	// otherwise.
 	LookupRepo(ctx context.Context, m *GitHubLookupRepo) (*GitHubLookupRepoResult, error)
 
+	// GetApp returns public info about the deploys.app GitHub App — currently
+	// just the installation URL the console sends users to. Gated by
+	// github.link like LookupRepo; it only feeds the link flow.
+	GetApp(ctx context.Context, m *GitHubGetApp) (*GitHubAppInfo, error)
+
+	// ListRepos lists the repositories visible to one GitHub App installation,
+	// so the console can offer a picker instead of asking users to type
+	// owner/name. The installation id comes from GitHub's post-install setup
+	// redirect or from an existing link.
+	ListRepos(ctx context.Context, m *GitHubListRepos) (*GitHubListReposResult, error)
+
 	// ExchangeToken exchanges a GitHub Actions OIDC token for a short-lived
 	// deploys token acting as the service account linked to the repository.
 	// It is authenticated by the GitHub token itself, not by the caller's
@@ -150,6 +161,59 @@ type GitHubLookupRepoResult struct {
 	RepositoryID   int64  `json:"repositoryId" yaml:"repositoryId"`
 	Repository     string `json:"repository" yaml:"repository"` // canonical owner/name from GitHub
 	InstallationID int64  `json:"installationId" yaml:"installationId"`
+}
+
+type GitHubGetApp struct {
+	Project string `json:"project" yaml:"project"`
+}
+
+func (m *GitHubGetApp) Valid() error {
+	v := validator.New()
+
+	v.Must(m.Project != "", "project required")
+
+	return WrapValidate(v)
+}
+
+type GitHubAppInfo struct {
+	InstallURL string `json:"installUrl" yaml:"installUrl"` // https://github.com/apps/<slug>/installations/new
+}
+
+type GitHubListRepos struct {
+	Project        string `json:"project" yaml:"project"`
+	InstallationID int64  `json:"installationId" yaml:"installationId"`
+}
+
+func (m *GitHubListRepos) Valid() error {
+	v := validator.New()
+
+	v.Must(m.Project != "", "project required")
+	v.Must(m.InstallationID > 0, "installationId required")
+
+	return WrapValidate(v)
+}
+
+type GitHubRepoItem struct {
+	RepositoryID int64  `json:"repositoryId" yaml:"repositoryId"`
+	Repository   string `json:"repository" yaml:"repository"` // owner/name
+	Private      bool   `json:"private" yaml:"private"`
+}
+
+type GitHubListReposResult struct {
+	Items []*GitHubRepoItem `json:"items" yaml:"items"`
+}
+
+func (m *GitHubListReposResult) Table() [][]string {
+	table := [][]string{
+		{"REPOSITORY", "PRIVATE"},
+	}
+	for _, x := range m.Items {
+		table = append(table, []string{
+			x.Repository,
+			strconv.FormatBool(x.Private),
+		})
+	}
+	return table
 }
 
 type GitHubExchangeToken struct {
