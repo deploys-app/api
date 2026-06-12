@@ -23,6 +23,12 @@ type CollectorLocationResult struct {
 
 type CollectorProject struct {
 	ID int64 `json:"id,string" yaml:"id"`
+
+	// Domains are the hostnames routed to this project in the requested
+	// location (from the routes table; wildcard domains keep their "*." prefix).
+	// The collector uses them to attribute edge cache egress (per-host
+	// Prometheus series) back to the project.
+	Domains []string `json:"domains" yaml:"domains"`
 }
 
 type CollectorSetProjectUsage struct {
