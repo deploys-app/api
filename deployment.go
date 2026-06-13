@@ -42,6 +42,7 @@ const (
 	DeploymentTypeCronJob
 	DeploymentTypeTCPService
 	DeploymentTypeInternalTCPService
+	DeploymentTypeStatic
 )
 
 var allDeploymentTypes = []DeploymentType{
@@ -50,6 +51,7 @@ var allDeploymentTypes = []DeploymentType{
 	DeploymentTypeCronJob,
 	DeploymentTypeTCPService,
 	DeploymentTypeInternalTCPService,
+	DeploymentTypeStatic,
 }
 
 var validDeploymentType = func() map[DeploymentType]bool {
@@ -81,6 +83,8 @@ func (t DeploymentType) String() string {
 		return "TCPService"
 	case DeploymentTypeInternalTCPService:
 		return "InternalTCPService"
+	case DeploymentTypeStatic:
+		return "Static"
 	default:
 		return ""
 	}
@@ -98,6 +102,8 @@ func (t DeploymentType) Text() string {
 		return "TCP Service"
 	case DeploymentTypeInternalTCPService:
 		return "Internal TCP Service"
+	case DeploymentTypeStatic:
+		return "Static"
 	default:
 		return ""
 	}
@@ -212,32 +218,34 @@ type DeploymentResource struct {
 }
 
 type DeploymentDeploy struct {
-	Project          string              `json:"project" yaml:"project"`
-	Location         string              `json:"location" yaml:"location"`
-	Name             string              `json:"name" yaml:"name"`
-	Image            string              `json:"image" yaml:"image"`
-	MinReplicas      *int                `json:"minReplicas" yaml:"minReplicas"`
-	MaxReplicas      *int                `json:"maxReplicas" yaml:"maxReplicas"`
-	Type             DeploymentType      `json:"type" yaml:"type"`
-	Port             *int                `json:"port" yaml:"port"`
-	Protocol         *DeploymentProtocol `json:"protocol" yaml:"protocol"`               // protocol for WebService
-	Internal         *bool               `json:"internal" yaml:"internal"`               // run WebService as internal service
-	Env              map[string]string   `json:"env" yaml:"env"`                         // override all env
-	AddEnv           map[string]string   `json:"addEnv" yaml:"addEnv"`                   // add env to old revision env
-	RemoveEnv        []string            `json:"removeEnv" yaml:"removeEnv"`             // remove env from old revision env
-	EnvGroups        []string            `json:"envGroups" yaml:"envGroups"`             // override all env groups
-	AddEnvGroups     []string            `json:"addEnvGroups" yaml:"addEnvGroups"`       // add env groups to old revision
-	RemoveEnvGroups  []string            `json:"removeEnvGroups" yaml:"removeEnvGroups"` // remove env groups from old revision
-	Command          []string            `json:"command" yaml:"command"`
-	Args             []string            `json:"args" yaml:"args"`
-	WorkloadIdentity *string             `json:"workloadIdentity" yaml:"workloadIdentity"` // workload identity name
-	PullSecret       *string             `json:"pullSecret" yaml:"pullSecret"`             // pull secret name
-	Disk             *DeploymentDisk     `json:"disk" yaml:"disk"`                         // type=Stateful
-	Schedule         *string             `json:"schedule" yaml:"schedule"`                 // type=CronJob
-	Resources        *DeploymentResource `json:"resources" yaml:"resources"`
-	MountData        map[string]string   `json:"mountData" yaml:"mountData"`
-	Sidecars         []*Sidecar          `json:"sidecars" yaml:"sidecars"`
-	TTL              *int64              `json:"ttl" yaml:"ttl"` // seconds until auto-delete; nil = no change, 0 = clear TTL, >0 = set TTL
+	Project            string              `json:"project" yaml:"project"`
+	Location           string              `json:"location" yaml:"location"`
+	Name               string              `json:"name" yaml:"name"`
+	Image              string              `json:"image" yaml:"image"`
+	Site               string              `json:"site" yaml:"site"`                             // site://<bucket>/<project>/<name>@<release-sha>, set for Static deployments instead of Image
+	SiteManifestDigest string              `json:"siteManifestDigest" yaml:"siteManifestDigest"` // digest of the static site manifest for the release
+	MinReplicas        *int                `json:"minReplicas" yaml:"minReplicas"`
+	MaxReplicas        *int                `json:"maxReplicas" yaml:"maxReplicas"`
+	Type               DeploymentType      `json:"type" yaml:"type"`
+	Port               *int                `json:"port" yaml:"port"`
+	Protocol           *DeploymentProtocol `json:"protocol" yaml:"protocol"`               // protocol for WebService
+	Internal           *bool               `json:"internal" yaml:"internal"`               // run WebService as internal service
+	Env                map[string]string   `json:"env" yaml:"env"`                         // override all env
+	AddEnv             map[string]string   `json:"addEnv" yaml:"addEnv"`                   // add env to old revision env
+	RemoveEnv          []string            `json:"removeEnv" yaml:"removeEnv"`             // remove env from old revision env
+	EnvGroups          []string            `json:"envGroups" yaml:"envGroups"`             // override all env groups
+	AddEnvGroups       []string            `json:"addEnvGroups" yaml:"addEnvGroups"`       // add env groups to old revision
+	RemoveEnvGroups    []string            `json:"removeEnvGroups" yaml:"removeEnvGroups"` // remove env groups from old revision
+	Command            []string            `json:"command" yaml:"command"`
+	Args               []string            `json:"args" yaml:"args"`
+	WorkloadIdentity   *string             `json:"workloadIdentity" yaml:"workloadIdentity"` // workload identity name
+	PullSecret         *string             `json:"pullSecret" yaml:"pullSecret"`             // pull secret name
+	Disk               *DeploymentDisk     `json:"disk" yaml:"disk"`                         // type=Stateful
+	Schedule           *string             `json:"schedule" yaml:"schedule"`                 // type=CronJob
+	Resources          *DeploymentResource `json:"resources" yaml:"resources"`
+	MountData          map[string]string   `json:"mountData" yaml:"mountData"`
+	Sidecars           []*Sidecar          `json:"sidecars" yaml:"sidecars"`
+	TTL                *int64              `json:"ttl" yaml:"ttl"` // seconds until auto-delete; nil = no change, 0 = clear TTL, >0 = set TTL
 }
 
 type DeploymentDisk struct {
@@ -266,8 +274,28 @@ func (m *DeploymentDeploy) Valid() error {
 		v.Mustf(cnt >= MinNameLength && cnt <= DeploymentMaxNameLength, "name must have length between %d-%d characters", MinNameLength, DeploymentMaxNameLength)
 	}
 
-	if v.Must(m.Image != "", "image required") {
-		v.Must(validImage(m.Image), "invalid image")
+	if m.Type == DeploymentTypeStatic {
+		// Static deployments carry a site:// release reference instead of an image
+		// and must not set any container-only field.
+		if v.Must(m.Site != "", "site required") {
+			v.Must(validSiteRef(m.Site), "site invalid")
+		}
+		v.Must(m.Image == "", "image not allowed for static")
+		v.Must(m.Port == nil || *m.Port == 0, "port not allowed for static")
+		v.Must(m.Protocol == nil || *m.Protocol == "", "protocol not allowed for static")
+		v.Must(m.MinReplicas == nil || *m.MinReplicas == 0, "minReplicas not allowed for static")
+		v.Must(m.MaxReplicas == nil || *m.MaxReplicas == 0, "maxReplicas not allowed for static")
+		v.Must(m.Disk == nil || m.Disk.Name == "", "disk not allowed for static")
+		v.Must(len(m.Command) == 0, "command not allowed for static")
+		v.Must(len(m.Args) == 0, "args not allowed for static")
+		v.Must(len(m.Sidecars) == 0, "sidecars not allowed for static")
+		v.Must(m.PullSecret == nil || *m.PullSecret == "", "pullSecret not allowed for static")
+		v.Must(m.WorkloadIdentity == nil || *m.WorkloadIdentity == "", "workloadIdentity not allowed for static")
+	} else {
+		v.Must(m.Site == "", "site not allowed")
+		if v.Must(m.Image != "", "image required") {
+			v.Must(validImage(m.Image), "invalid image")
+		}
 	}
 
 	// validate replicas if provided
@@ -388,45 +416,47 @@ func (m *DeploymentListResult) Table() [][]string {
 }
 
 type DeploymentItem struct {
-	Project          string             `json:"project" yaml:"project"`
-	Location         string             `json:"location" yaml:"location"`
-	Name             string             `json:"name" yaml:"name"`
-	Type             DeploymentType     `json:"type" yaml:"type"`
-	Revision         int64              `json:"revision" yaml:"revision"`
-	Image            string             `json:"image" yaml:"image"`
-	Env              map[string]string  `json:"env" yaml:"env"`
-	EnvGroups        []string           `json:"envGroups" yaml:"envGroups"`
-	Command          []string           `json:"command" yaml:"command"`
-	Args             []string           `json:"args" yaml:"args"`
-	WorkloadIdentity string             `json:"workloadIdentity" yaml:"workloadIdentity"`
-	PullSecret       string             `json:"pullSecret" yaml:"pullSecret"`
-	Disk             *DeploymentDisk    `json:"disk" yaml:"disk"`
-	MountData        map[string]string  `json:"mountData" yaml:"mountData"`
-	MinReplicas      int                `json:"minReplicas" yaml:"minReplicas"`
-	MaxReplicas      int                `json:"maxReplicas" yaml:"maxReplicas"`
-	Schedule         string             `json:"schedule" yaml:"schedule"`
-	Port             int                `json:"port" yaml:"port"`
-	Protocol         DeploymentProtocol `json:"protocol" yaml:"protocol"`
-	Internal         bool               `json:"internal" yaml:"internal"`
-	NodePort         int                `json:"nodePort" yaml:"nodePort"`
-	Annotations      map[string]string  `json:"annotations" yaml:"annotations"`
-	Resources        DeploymentResource `json:"resources" yaml:"resources"`
-	Sidecars         []*Sidecar         `json:"sidecars" yaml:"sidecars"`
-	URL              string             `json:"url" yaml:"url"`
-	InternalURL      string             `json:"internalUrl" yaml:"internalUrl"`
-	LogURL           string             `json:"logUrl" yaml:"logUrl"`
-	EventURL         string             `json:"eventUrl" yaml:"eventUrl"`
-	PodsURL          string             `json:"podsUrl" yaml:"podsUrl"`
-	StatusURL        string             `json:"statusUrl" yaml:"statusUrl"`
-	Address          string             `json:"address" yaml:"address"`
-	InternalAddress  string             `json:"internalAddress" yaml:"internalAddress"`
-	Status           Status             `json:"status" yaml:"status"`
-	Action           DeploymentAction   `json:"action" yaml:"action"`
-	AllocatedPrice   float64            `json:"allocatedPrice" yaml:"allocatedPrice"`
-	CreatedAt        time.Time          `json:"createdAt" yaml:"createdAt"`
-	CreatedBy        string             `json:"createdBy" yaml:"createdBy"`
-	SuccessAt        time.Time          `json:"successAt" yaml:"successAt"`
-	TTL              int64              `json:"ttl" yaml:"ttl"` // seconds until auto-delete; 0 means no TTL
+	Project            string             `json:"project" yaml:"project"`
+	Location           string             `json:"location" yaml:"location"`
+	Name               string             `json:"name" yaml:"name"`
+	Type               DeploymentType     `json:"type" yaml:"type"`
+	Revision           int64              `json:"revision" yaml:"revision"`
+	Image              string             `json:"image" yaml:"image"`
+	Site               string             `json:"site" yaml:"site"`
+	SiteManifestDigest string             `json:"siteManifestDigest" yaml:"siteManifestDigest"`
+	Env                map[string]string  `json:"env" yaml:"env"`
+	EnvGroups          []string           `json:"envGroups" yaml:"envGroups"`
+	Command            []string           `json:"command" yaml:"command"`
+	Args               []string           `json:"args" yaml:"args"`
+	WorkloadIdentity   string             `json:"workloadIdentity" yaml:"workloadIdentity"`
+	PullSecret         string             `json:"pullSecret" yaml:"pullSecret"`
+	Disk               *DeploymentDisk    `json:"disk" yaml:"disk"`
+	MountData          map[string]string  `json:"mountData" yaml:"mountData"`
+	MinReplicas        int                `json:"minReplicas" yaml:"minReplicas"`
+	MaxReplicas        int                `json:"maxReplicas" yaml:"maxReplicas"`
+	Schedule           string             `json:"schedule" yaml:"schedule"`
+	Port               int                `json:"port" yaml:"port"`
+	Protocol           DeploymentProtocol `json:"protocol" yaml:"protocol"`
+	Internal           bool               `json:"internal" yaml:"internal"`
+	NodePort           int                `json:"nodePort" yaml:"nodePort"`
+	Annotations        map[string]string  `json:"annotations" yaml:"annotations"`
+	Resources          DeploymentResource `json:"resources" yaml:"resources"`
+	Sidecars           []*Sidecar         `json:"sidecars" yaml:"sidecars"`
+	URL                string             `json:"url" yaml:"url"`
+	InternalURL        string             `json:"internalUrl" yaml:"internalUrl"`
+	LogURL             string             `json:"logUrl" yaml:"logUrl"`
+	EventURL           string             `json:"eventUrl" yaml:"eventUrl"`
+	PodsURL            string             `json:"podsUrl" yaml:"podsUrl"`
+	StatusURL          string             `json:"statusUrl" yaml:"statusUrl"`
+	Address            string             `json:"address" yaml:"address"`
+	InternalAddress    string             `json:"internalAddress" yaml:"internalAddress"`
+	Status             Status             `json:"status" yaml:"status"`
+	Action             DeploymentAction   `json:"action" yaml:"action"`
+	AllocatedPrice     float64            `json:"allocatedPrice" yaml:"allocatedPrice"`
+	CreatedAt          time.Time          `json:"createdAt" yaml:"createdAt"`
+	CreatedBy          string             `json:"createdBy" yaml:"createdBy"`
+	SuccessAt          time.Time          `json:"successAt" yaml:"successAt"`
+	TTL                int64              `json:"ttl" yaml:"ttl"` // seconds until auto-delete; 0 means no TTL
 }
 
 type DeploymentGet struct {
