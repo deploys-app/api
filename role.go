@@ -72,6 +72,8 @@ var permissions = []string{
 	"dropbox.*",
 	"dropbox.upload",
 	"dropbox.list",
+	"site.*",
+	"site.publish",
 	"registry.*",
 	"registry.push",
 	"registry.pull",
