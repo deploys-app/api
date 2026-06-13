@@ -66,6 +66,16 @@ func validImage(image string) bool {
 	return true
 }
 
+// reSiteRef matches a static site release reference of the form
+// site://<bucket>/<project>/<name>@<sha256>, where bucket/project/name are
+// DNS-ish path-safe segments (lowercase alnum and hyphens, no slashes within a
+// segment) and the ref ends with @ followed by exactly 64 lowercase hex chars.
+var reSiteRef = regexp.MustCompile(`^site://[a-z0-9](?:[a-z0-9-]*[a-z0-9])?/[a-z0-9](?:[a-z0-9-]*[a-z0-9])?/[a-z0-9](?:[a-z0-9-]*[a-z0-9])?@[0-9a-f]{64}$`)
+
+func validSiteRef(site string) bool {
+	return reSiteRef.MatchString(site)
+}
+
 func validRouteTarget(target string) bool {
 	for _, x := range routeTargetPrefix {
 		if strings.HasPrefix(target, x) {

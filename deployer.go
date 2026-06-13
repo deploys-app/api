@@ -101,7 +101,11 @@ type DeployerCommandDeploymentDeployBillingConfig struct {
 }
 
 type DeployerCommandDeploymentDeploySpec struct {
-	Image                string                `json:"image"`
+	Image string `json:"image"`
+	// Site and SitePrefix carry the static site release: for Static deployments
+	// Image is empty and these point the deployer at the served release.
+	Site                 string                `json:"site"`
+	SitePrefix           string                `json:"sitePrefix"`
 	Env                  map[string]string     `json:"env"`
 	Command              []string              `json:"command"`
 	Args                 []string              `json:"args"`
