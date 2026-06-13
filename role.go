@@ -103,14 +103,23 @@ func Permissions() []string {
 }
 
 type Role interface {
+	// Create requires the `role.create` permission.
 	Create(ctx context.Context, m *RoleCreate) (*Empty, error)
+	// List requires the `role.list` permission.
 	List(ctx context.Context, m *RoleList) (*RoleListResult, error)
+	// Get requires the `role.get` permission.
 	Get(ctx context.Context, m *RoleGet) (*RoleGetResult, error)
+	// Delete requires the `role.delete` permission.
 	Delete(ctx context.Context, m *RoleDelete) (*Empty, error)
+	// Grant requires the `role.bind` permission.
 	Grant(ctx context.Context, m *RoleGrant) (*Empty, error)
+	// Revoke requires the `role.bind` permission.
 	Revoke(ctx context.Context, m *RoleRevoke) (*Empty, error)
+	// Users requires the `role.list` permission.
 	Users(ctx context.Context, m *RoleUsers) (*RoleUsersResult, error)
+	// Bind requires the `role.bind` permission.
 	Bind(ctx context.Context, m *RoleBind) (*Empty, error)
+	// Permissions requires authentication only (no specific permission; returns the static permission catalog).
 	Permissions(ctx context.Context, _ *Empty) ([]string, error)
 }
 

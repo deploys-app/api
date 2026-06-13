@@ -8,7 +8,9 @@ import (
 )
 
 type Location interface {
+	// List requires authentication only when a project is supplied (project membership, or platform admin); public locations otherwise (no permission).
 	List(ctx context.Context, m *LocationList) (*LocationListResult, error)
+	// Get requires no authentication (public location lookup).
 	Get(ctx context.Context, m *LocationGet) (*LocationItem, error)
 }
 

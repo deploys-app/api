@@ -12,8 +12,11 @@ import (
 )
 
 type GitHub interface {
+	// Link requires the `github.link` permission.
 	Link(ctx context.Context, m *GitHubLink) (*Empty, error)
+	// Unlink requires the `github.unlink` permission.
 	Unlink(ctx context.Context, m *GitHubUnlink) (*Empty, error)
+	// List requires the `github.list` permission.
 	List(ctx context.Context, m *GitHubList) (*GitHubListResult, error)
 
 	// LookupRepo resolves an owner/name repository to its immutable numeric
@@ -21,23 +24,27 @@ type GitHub interface {
 	// callers (the console) never ask users for a repository id. It also
 	// proves the App is installed on the repository — the lookup fails
 	// otherwise.
+	// LookupRepo requires the `github.link` permission.
 	LookupRepo(ctx context.Context, m *GitHubLookupRepo) (*GitHubLookupRepoResult, error)
 
 	// GetApp returns public info about the deploys.app GitHub App — currently
 	// just the installation URL the console sends users to. Gated by
 	// github.link like LookupRepo; it only feeds the link flow.
+	// GetApp requires the `github.link` permission.
 	GetApp(ctx context.Context, m *GitHubGetApp) (*GitHubAppInfo, error)
 
 	// ListRepos lists the repositories visible to one GitHub App installation,
 	// so the console can offer a picker instead of asking users to type
 	// owner/name. The installation id comes from GitHub's post-install setup
 	// redirect or from an existing link.
+	// ListRepos requires the `github.link` permission.
 	ListRepos(ctx context.Context, m *GitHubListRepos) (*GitHubListReposResult, error)
 
 	// ExchangeToken exchanges a GitHub Actions OIDC token for a short-lived
 	// deploys token acting as the service account linked to the repository.
 	// It is authenticated by the GitHub token itself, not by the caller's
 	// deploys identity.
+	// ExchangeToken requires a GitHub Actions OIDC token (no project permission).
 	ExchangeToken(ctx context.Context, m *GitHubExchangeToken) (*GitHubExchangeTokenResult, error)
 
 	// Notify reports build/deploy progress from a GitHub Actions workflow run
@@ -46,6 +53,7 @@ type GitHub interface {
 	// authenticated by the workflow's GitHub Actions OIDC token (sent as the
 	// bearer token), not by a deploys identity: the token's repository claims
 	// are authoritative and the reported sha must match the token's sha claim.
+	// Notify requires a GitHub Actions OIDC token (no project permission).
 	Notify(ctx context.Context, m *GitHubNotify) (*Empty, error)
 
 	// AddInstallation remembers a GitHub App installation id for a project.

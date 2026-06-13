@@ -13,14 +13,23 @@ import (
 )
 
 type Deployment interface {
+	// Deploy requires the `deployment.deploy` permission.
 	Deploy(ctx context.Context, m *DeploymentDeploy) (*Empty, error)
+	// List requires the `deployment.list` permission.
 	List(ctx context.Context, m *DeploymentList) (*DeploymentListResult, error)
+	// Get requires the `deployment.get` permission.
 	Get(ctx context.Context, m *DeploymentGet) (*DeploymentItem, error)
+	// Revisions requires the `deployment.get` permission.
 	Revisions(ctx context.Context, m *DeploymentRevisions) (*DeploymentRevisionsResult, error)
+	// Resume requires the `deployment.deploy` permission.
 	Resume(ctx context.Context, m *DeploymentResume) (*Empty, error)
+	// Pause requires the `deployment.deploy` permission.
 	Pause(ctx context.Context, m *DeploymentPause) (*Empty, error)
+	// Rollback requires the `deployment.get` and `deployment.deploy` permissions.
 	Rollback(ctx context.Context, m *DeploymentRollback) (*Empty, error)
+	// Delete requires the `deployment.delete` permission.
 	Delete(ctx context.Context, m *DeploymentDelete) (*Empty, error)
+	// Metrics requires the `deployment.get` permission.
 	Metrics(ctx context.Context, m *DeploymentMetrics) (*DeploymentMetricsResult, error)
 }
 

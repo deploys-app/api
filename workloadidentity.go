@@ -11,9 +11,13 @@ import (
 )
 
 type WorkloadIdentity interface {
+	// Create requires the `workloadidentity.create` permission.
 	Create(ctx context.Context, m *WorkloadIdentityCreate) (*Empty, error)
+	// Get requires the `workloadidentity.get` permission.
 	Get(ctx context.Context, m *WorkloadIdentityGet) (*WorkloadIdentityItem, error)
+	// List requires the `workloadidentity.list` permission.
 	List(ctx context.Context, m *WorkloadIdentityList) (*WorkloadIdentityListResult, error)
+	// Delete requires the `workloadidentity.delete` permission.
 	Delete(ctx context.Context, m *WorkloadIdentityDelete) (*Empty, error)
 }
 

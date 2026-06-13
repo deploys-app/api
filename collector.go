@@ -5,11 +5,17 @@ import (
 )
 
 type Collector interface {
+	// Location requires the location's collector token (internal endpoint authenticated by the per-location collector_token, not a user permission).
 	Location(ctx context.Context, m *CollectorLocation) (*CollectorLocationResult, error)
+	// SetProjectUsage requires the location's collector token (internal endpoint authenticated by the per-location collector_token, not a user permission).
 	SetProjectUsage(ctx context.Context, m *CollectorSetProjectUsage) (*Empty, error)
+	// SetDeploymentUsage requires the location's collector token (internal endpoint authenticated by the per-location collector_token, not a user permission).
 	SetDeploymentUsage(ctx context.Context, m *CollectorSetDeploymentUsage) (*Empty, error)
+	// SetDiskUsage requires the location's collector token (internal endpoint authenticated by the per-location collector_token, not a user permission).
 	SetDiskUsage(ctx context.Context, m *CollectorSetDiskUsage) (*Empty, error)
+	// SetWAFUsage requires the location's collector token (internal endpoint authenticated by the per-location collector_token, not a user permission).
 	SetWAFUsage(ctx context.Context, m *CollectorSetWAFUsage) (*Empty, error)
+	// SetRateLimitUsage requires the location's collector token (internal endpoint authenticated by the per-location collector_token, not a user permission).
 	SetRateLimitUsage(ctx context.Context, m *CollectorSetRateLimitUsage) (*Empty, error)
 }
 

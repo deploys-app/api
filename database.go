@@ -11,6 +11,7 @@ import (
 )
 
 type Database interface {
+	// Create requires the `disk.create` permission (database provisioning reuses the disk.create permission).
 	Create(context.Context, *DatabaseCreate) (*Empty, error)
 }
 

@@ -6,7 +6,9 @@ import (
 )
 
 type Dropbox interface {
+	// List requires the `dropbox.list` permission.
 	List(ctx context.Context, m *DropboxList) (*DropboxListResult, error)
+	// Metrics requires the `dropbox.list` permission.
 	Metrics(ctx context.Context, m *DropboxMetrics) (*DropboxMetricsResult, error)
 }
 

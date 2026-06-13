@@ -12,7 +12,9 @@ import (
 )
 
 type Email interface {
+	// Send requires the `email.send` permission.
 	Send(ctx context.Context, m *EmailSend) (*Empty, error)
+	// List requires the `email.list` permission.
 	List(ctx context.Context, m *EmailList) (*EmailListResult, error)
 }
 

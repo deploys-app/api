@@ -6,6 +6,7 @@ import (
 )
 
 type AuditLog interface {
+	// List requires the `auditlog.list` permission.
 	List(ctx context.Context, m *AuditLogList) (*AuditLogListResult, error)
 }
 

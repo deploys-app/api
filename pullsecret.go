@@ -11,9 +11,13 @@ import (
 )
 
 type PullSecret interface {
+	// Create requires the `pullsecret.create` permission.
 	Create(ctx context.Context, m *PullSecretCreate) (*Empty, error)
+	// Get requires the `pullsecret.get` permission.
 	Get(ctx context.Context, m *PullSecretGet) (*PullSecretItem, error)
+	// List requires the `pullsecret.list` permission.
 	List(ctx context.Context, m *PullSecretList) (*PullSecretListResult, error)
+	// Delete requires the `pullsecret.delete` permission.
 	Delete(ctx context.Context, m *PullSecretDelete) (*Empty, error)
 }
 
