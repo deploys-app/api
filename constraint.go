@@ -52,3 +52,24 @@ const (
 	WAFLimitMinWindow   = time.Second
 	WAFLimitMaxWindow   = time.Hour
 )
+
+// Cache overrides (parapet cacherule)
+const (
+	CacheMaxOverrides = 50
+
+	// CacheMaxOverrideIDLength matches parapet's hard 63-char cap on an override
+	// id (override ids label parapet_cache_override_total series). NOTE the cap
+	// is on the FULL stored id (<projectID>-<rand>), so the server must validate
+	// the prefixed form, not just the client-facing short id.
+	CacheMaxOverrideIDLength = 63
+
+	// CacheMaxFilterLength caps the CEL filter; it shares the WAF expression
+	// surface so it uses the same budget.
+	CacheMaxFilterLength = WAFMaxExpressionLength
+
+	// CacheMinTTL mirrors parapet's 1s minimum forced freshness lifetime;
+	// CacheMaxTTL is a deploys.app policy cap (parapet itself sets no upper
+	// bound).
+	CacheMinTTL = time.Second
+	CacheMaxTTL = 720 * time.Hour
+)

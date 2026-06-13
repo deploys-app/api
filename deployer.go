@@ -38,6 +38,8 @@ type DeployerCommandItem struct {
 	DomainCertDelete       *DeployerCommandDomainCertDelete       `json:"domainCertDelete,omitempty"`
 	WAFSet                 *DeployerCommandWAFSet                 `json:"wafSet,omitempty"`
 	WAFDelete              *DeployerCommandWAFDelete              `json:"wafDelete,omitempty"`
+	CacheSet               *DeployerCommandCacheSet               `json:"cacheSet,omitempty"`
+	CacheDelete            *DeployerCommandCacheDelete            `json:"cacheDelete,omitempty"`
 }
 
 type DeployerCommandMetadata struct {
@@ -212,6 +214,32 @@ type DeployerCommandWAFDelete struct {
 	RateLimitZoneID string `json:"rateLimitZoneId"`
 }
 
+// DeployerCommandCacheSet asks the location's deployer to materialize the
+// project's cache-override zone: upsert a parapet cache zone ConfigMap (name =
+// ZoneID, labeled parapet.moonrhythm.io/cache: zone) holding the overrides, and
+// bind every one of the project's Ingresses in this location via the
+// parapet.moonrhythm.io/cache-zone annotation. Issued when cache_zones.action
+// is Create or Update.
+//
+// Unlike WAF there is a single ZoneID (cache is one ConfigMap; there is no
+// separate ratelimit-style sibling). Cache overrides are edge-only — only the
+// edge control plane consumes the ConfigMap and annotation.
+type DeployerCommandCacheSet struct {
+	ID        int64           `json:"id"`
+	ProjectID int64           `json:"projectId"`
+	ZoneID    string          `json:"zoneId"`
+	Overrides []CacheOverride `json:"overrides"`
+}
+
+// DeployerCommandCacheDelete asks the location's deployer to remove the
+// project's cache zone ConfigMap and strip the cache-zone annotation from its
+// Ingresses. Issued when cache_zones.action is Delete.
+type DeployerCommandCacheDelete struct {
+	ID        int64  `json:"id"`
+	ProjectID int64  `json:"projectId"`
+	ZoneID    string `json:"zoneId"`
+}
+
 type DeployerSetResult []*DeployerSetResultItem
 
 type DeployerSetResultItem struct {
@@ -231,6 +259,8 @@ type DeployerSetResultItem struct {
 	DomainCertDelete       *DeployerSetResultItemGeneral    `json:"domainCertDelete,omitempty"`
 	WAFSet                 *DeployerSetResultItemGeneral    `json:"wafSet,omitempty"`
 	WAFDelete              *DeployerSetResultItemGeneral    `json:"wafDelete,omitempty"`
+	CacheSet               *DeployerSetResultItemGeneral    `json:"cacheSet,omitempty"`
+	CacheDelete            *DeployerSetResultItemGeneral    `json:"cacheDelete,omitempty"`
 }
 
 type DeployerSetResultItemGeneral struct {

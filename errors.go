@@ -64,6 +64,8 @@ var (
 	ErrInvoiceNotPaid                = newError("api: invoice is not paid")
 	ErrWAFZoneNotFound               = newError("api: waf zone not found")
 	ErrWAFRuleInvalid                = newError("api: waf rule invalid")
+	ErrCacheZoneNotFound             = newError("api: cache zone not found")
+	ErrCacheOverrideInvalid          = newError("api: cache override invalid")
 	ErrGitHubRepoAlreadyLinked       = newError("api: github repository already linked")
 	ErrGitHubRepoLinkNotFound        = newError("api: github repository link not found")
 	ErrGitHubTokenInvalid            = newError("api: github token invalid")

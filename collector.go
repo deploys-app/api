@@ -17,6 +17,8 @@ type Collector interface {
 	SetWAFUsage(ctx context.Context, m *CollectorSetWAFUsage) (*Empty, error)
 	// SetRateLimitUsage requires the location's collector token (internal endpoint authenticated by the per-location collector_token, not a user permission).
 	SetRateLimitUsage(ctx context.Context, m *CollectorSetRateLimitUsage) (*Empty, error)
+	// SetCacheOverrideUsage requires the location's collector token (internal endpoint authenticated by the per-location collector_token, not a user permission).
+	SetCacheOverrideUsage(ctx context.Context, m *CollectorSetCacheOverrideUsage) (*Empty, error)
 }
 
 type CollectorLocation struct {
@@ -118,4 +120,26 @@ type CollectorRateLimitUsageItem struct {
 	Result    string  `json:"result" yaml:"result"`   // allowed|limited
 	Value     float64 `json:"value" yaml:"value"`     // decision count in the window
 	At        int64   `json:"at" yaml:"at"`           // unix second, minute-aligned bucket
+}
+
+// CollectorSetCacheOverrideUsage upserts cache-override decision counts
+// collected from parapet's parapet_cache_override_total counter. Each item is
+// one (override_id, action, result) bucket for a minute; the collector parses
+// ProjectID from the project-prefixed OverrideID (<projectID>-<rand>, the same
+// scheme as WAF rule ids). Upserted by (location, project, overrideId, action,
+// result, at) so back-fill re-runs are idempotent. The vec carries BOTH action
+// and result, so both are part of the bucket (unlike WAF action-only / rate
+// limit result-only).
+type CollectorSetCacheOverrideUsage struct {
+	Location string                             `json:"location" yaml:"location"`
+	List     []*CollectorCacheOverrideUsageItem `json:"list" yaml:"list"`
+}
+
+type CollectorCacheOverrideUsageItem struct {
+	ProjectID  int64   `json:"projectId,string" yaml:"projectId"`
+	OverrideID string  `json:"overrideId" yaml:"overrideId"` // full generated id (<projectID>-<rand>)
+	Action     string  `json:"action" yaml:"action"`         // cache|bypass
+	Result     string  `json:"result" yaml:"result"`         // applied|shadow|error
+	Value      float64 `json:"value" yaml:"value"`           // decision count in the window
+	At         int64   `json:"at" yaml:"at"`                 // unix second, minute-aligned bucket
 }

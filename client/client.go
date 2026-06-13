@@ -97,6 +97,10 @@ func (c *Client) WAF() api.WAF {
 	return wafClient{c}
 }
 
+func (c *Client) Cache() api.Cache {
+	return cacheClient{c}
+}
+
 func (c *Client) Disk() api.Disk {
 	return diskClient{c}
 }
