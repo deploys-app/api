@@ -66,6 +66,11 @@ type LocationFeatures struct {
 	WorkloadIdentity bool      `json:"workloadIdentity,omitempty" yaml:"workloadIdentity"`
 	Disk             *struct{} `json:"disk,omitempty" yaml:"disk"`
 	WAF              *struct{} `json:"waf,omitempty" yaml:"waf"`
+	// Cache gates the edge cache-override feature (cache.* RPCs). It is EDGE-only
+	// and independent of WAF: enable it only for locations whose edge control
+	// plane runs CP_CACHE_ENABLED (the apiserver cannot verify edge readiness, so
+	// the flag is the human contract that the edge is watching cache ConfigMaps).
+	Cache *struct{} `json:"cache,omitempty" yaml:"cache"`
 }
 
 type LocationGet struct {

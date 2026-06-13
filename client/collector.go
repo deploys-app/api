@@ -63,3 +63,12 @@ func (c collectorClient) SetRateLimitUsage(ctx context.Context, m *api.Collector
 	}
 	return &res, nil
 }
+
+func (c collectorClient) SetCacheOverrideUsage(ctx context.Context, m *api.CollectorSetCacheOverrideUsage) (*api.Empty, error) {
+	var res api.Empty
+	err := c.inv.invoke(ctx, "collector.setCacheOverrideUsage", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}

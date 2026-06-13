@@ -10,6 +10,7 @@ type Interface interface {
 	Domain() Domain
 	Route() Route
 	WAF() WAF
+	Cache() Cache
 	Disk() Disk
 	PullSecret() PullSecret
 	WorkloadIdentity() WorkloadIdentity
