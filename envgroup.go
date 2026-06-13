@@ -10,10 +10,15 @@ import (
 )
 
 type EnvGroup interface {
+	// Create requires the `envgroup.create` permission.
 	Create(ctx context.Context, m *EnvGroupCreate) (*Empty, error)
+	// Get requires the `envgroup.get` permission.
 	Get(ctx context.Context, m *EnvGroupGet) (*EnvGroupItem, error)
+	// List requires the `envgroup.list` permission.
 	List(ctx context.Context, m *EnvGroupList) (*EnvGroupListResult, error)
+	// Update requires the `envgroup.update` permission.
 	Update(ctx context.Context, m *EnvGroupUpdate) (*Empty, error)
+	// Delete requires the `envgroup.delete` permission.
 	Delete(ctx context.Context, m *EnvGroupDelete) (*Empty, error)
 }
 

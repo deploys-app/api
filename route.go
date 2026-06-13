@@ -24,10 +24,15 @@ func RouteTargetPrefix() []string {
 }
 
 type Route interface {
+	// Create requires the `route.create` permission.
 	Create(ctx context.Context, m *RouteCreate) (*Empty, error)
+	// CreateV2 requires the `route.create` permission.
 	CreateV2(ctx context.Context, m *RouteCreateV2) (*Empty, error)
+	// Get requires the `route.get` permission.
 	Get(ctx context.Context, m *RouteGet) (*RouteItem, error)
+	// List requires the `route.list` permission.
 	List(ctx context.Context, m *RouteList) (*RouteListResult, error)
+	// Delete requires the `route.delete` permission.
 	Delete(ctx context.Context, m *RouteDelete) (*Empty, error)
 }
 

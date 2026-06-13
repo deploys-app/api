@@ -8,14 +8,23 @@ import (
 )
 
 type Registry interface {
+	// List requires the `registry.list` permission.
 	List(ctx context.Context, m *RegistryList) (*RegistryListResult, error)
+	// Get requires the `registry.get` permission.
 	Get(ctx context.Context, m *RegistryGet) (*RegistryRepository, error)
+	// GetTags requires the `registry.get` permission.
 	GetTags(ctx context.Context, m *RegistryGetTags) (*RegistryGetTagsResult, error)
+	// GetManifests requires the `registry.get` permission.
 	GetManifests(ctx context.Context, m *RegistryGetManifests) (*RegistryGetManifestsResult, error)
+	// GetProjectStorage requires the `registry.get` permission.
 	GetProjectStorage(ctx context.Context, m *RegistryGetProjectStorage) (*RegistryProjectStorage, error)
+	// Delete requires the `registry.push` permission.
 	Delete(ctx context.Context, m *RegistryDelete) (*Empty, error)
+	// DeleteManifest requires the `registry.push` permission.
 	DeleteManifest(ctx context.Context, m *RegistryDeleteManifest) (*Empty, error)
+	// Untag requires the `registry.push` permission.
 	Untag(ctx context.Context, m *RegistryUntag) (*Empty, error)
+	// Metrics requires the `registry.get` permission.
 	Metrics(ctx context.Context, m *RegistryMetrics) (*RegistryMetricsResult, error)
 }
 

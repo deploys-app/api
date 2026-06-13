@@ -23,11 +23,17 @@ import (
 // The platform-owned global baseline is not exposed here — it is operated in
 // the controller's own namespace and is always authoritative over the zone.
 type WAF interface {
+	// Get requires the `waf.get` permission.
 	Get(ctx context.Context, m *WAFGet) (*WAFItem, error)
+	// List requires the `waf.list` permission.
 	List(ctx context.Context, m *WAFList) (*WAFListResult, error)
+	// Set requires the `waf.set` permission.
 	Set(ctx context.Context, m *WAFSet) (*Empty, error)
+	// Delete requires the `waf.delete` permission.
 	Delete(ctx context.Context, m *WAFDelete) (*Empty, error)
+	// Metrics requires the `waf.get` permission.
 	Metrics(ctx context.Context, m *WAFMetrics) (*WAFMetricsResult, error)
+	// LimitMetrics requires the `waf.get` permission.
 	LimitMetrics(ctx context.Context, m *WAFLimitMetrics) (*WAFLimitMetricsResult, error)
 }
 

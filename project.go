@@ -12,11 +12,17 @@ import (
 )
 
 type Project interface {
+	// Create requires authentication only (no specific permission; the new owner role is granted to the creator).
 	Create(ctx context.Context, m *ProjectCreate) (*Empty, error)
+	// Get requires authentication only (no specific permission; scoped to projects the caller is a member of, or all projects for a platform admin).
 	Get(ctx context.Context, m *ProjectGet) (*ProjectItem, error)
+	// List requires authentication only (no specific permission; lists the caller's projects, or all projects for a platform admin).
 	List(ctx context.Context, m *Empty) (*ProjectListResult, error)
+	// Update requires the `*` (owner/wildcard) permission.
 	Update(ctx context.Context, m *ProjectUpdate) (*Empty, error)
+	// Delete requires the `project.delete` permission.
 	Delete(ctx context.Context, m *ProjectDelete) (*Empty, error)
+	// Usage requires the `project.get` permission.
 	Usage(ctx context.Context, m *ProjectUsage) (*ProjectUsageResult, error)
 }
 

@@ -10,12 +10,19 @@ import (
 )
 
 type ServiceAccount interface {
+	// Create requires the `serviceaccount.create` permission.
 	Create(ctx context.Context, m *ServiceAccountCreate) (*Empty, error)
+	// Get requires the `serviceaccount.get` permission.
 	Get(ctx context.Context, m *ServiceAccountGet) (*ServiceAccountGetResult, error)
+	// List requires the `serviceaccount.list` permission.
 	List(ctx context.Context, m *ServiceAccountList) (*ServiceAccountListResult, error)
+	// Update requires the `serviceaccount.create` permission.
 	Update(ctx context.Context, m *ServiceAccountUpdate) (*Empty, error)
+	// Delete requires the `serviceaccount.delete` permission.
 	Delete(ctx context.Context, m *ServiceAccountDelete) (*Empty, error)
+	// CreateKey requires the `serviceaccount.key.create` permission.
 	CreateKey(ctx context.Context, m *ServiceAccountCreateKey) (*Empty, error)
+	// DeleteKey requires the `serviceaccount.key.delete` permission.
 	DeleteKey(ctx context.Context, m *ServiceAccountDeleteKey) (*Empty, error)
 }
 

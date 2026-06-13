@@ -10,10 +10,15 @@ import (
 )
 
 type Domain interface {
+	// Create requires the `domain.create` permission.
 	Create(ctx context.Context, m *DomainCreate) (*Empty, error)
+	// Get requires the `domain.get` permission.
 	Get(ctx context.Context, m *DomainGet) (*DomainItem, error)
+	// List requires the `domain.list` permission.
 	List(ctx context.Context, m *DomainList) (*DomainListResult, error)
+	// Delete requires the `domain.delete` permission.
 	Delete(ctx context.Context, m *DomainDelete) (*Empty, error)
+	// PurgeCache requires the `domain.purgecache` permission.
 	PurgeCache(ctx context.Context, m *DomainPurgeCache) (*Empty, error)
 }
 

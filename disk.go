@@ -12,11 +12,17 @@ import (
 )
 
 type Disk interface {
+	// Create requires the `disk.create` permission.
 	Create(ctx context.Context, m *DiskCreate) (*Empty, error)
+	// Get requires the `disk.get` permission.
 	Get(ctx context.Context, m *DiskGet) (*DiskItem, error)
+	// List requires the `disk.list` permission.
 	List(ctx context.Context, m *DiskList) (*DiskListResult, error)
+	// Update requires the `disk.update` permission.
 	Update(ctx context.Context, m *DiskUpdate) (*Empty, error)
+	// Delete requires the `disk.delete` permission.
 	Delete(ctx context.Context, m *DiskDelete) (*Empty, error)
+	// Metrics requires the `disk.get` permission.
 	Metrics(ctx context.Context, m *DiskMetrics) (*DiskMetricsResult, error)
 }
 

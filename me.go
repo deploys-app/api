@@ -9,9 +9,13 @@ import (
 )
 
 type Me interface {
+	// Get requires authentication only (no specific permission).
 	Get(ctx context.Context, _ *Empty) (*MeItem, error)
+	// Authorized requires authentication only (no specific permission).
 	Authorized(ctx context.Context, m *MeAuthorized) (*MeAuthorizedResult, error)
+	// Permissions requires authentication only (no specific permission; returns the caller's own effective permissions for a project).
 	Permissions(ctx context.Context, m *MePermissions) (*MePermissionsResult, error)
+	// UploadKYCDocument requires authentication only (no specific permission; the caller uploads their own KYC document).
 	UploadKYCDocument(ctx context.Context, m *MeUploadKYCDocument) (*MeUploadKYCDocumentResult, error)
 }
 

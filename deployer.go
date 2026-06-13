@@ -5,9 +5,13 @@ import (
 )
 
 type Deployer interface {
+	// GetLocation requires the location's deployer token (internal endpoint authenticated by the per-location deployer_token, not a user permission).
 	GetLocation(ctx context.Context, m *Empty) (*LocationItem, error)
+	// IsDomainActive requires the location's deployer token (internal endpoint authenticated by the per-location deployer_token, not a user permission).
 	IsDomainActive(ctx context.Context, m *DeployerIsDomainActive) (bool, error)
+	// GetCommands requires the location's deployer token (internal endpoint authenticated by the per-location deployer_token, not a user permission).
 	GetCommands(ctx context.Context, m *Empty) (*GetCommandsResult, error)
+	// SetResults requires the location's deployer token (internal endpoint authenticated by the per-location deployer_token, not a user permission).
 	SetResults(ctx context.Context, m *DeployerSetResult) (*Empty, error)
 }
 

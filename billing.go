@@ -12,20 +12,33 @@ import (
 )
 
 type Billing interface {
+	// Create requires authentication only (no specific permission; creates a billing account owned by the caller).
 	Create(ctx context.Context, m *BillingCreate) (*BillingCreateResult, error)
+	// List requires authentication only (no specific permission; lists the caller's own billing accounts).
 	List(ctx context.Context, m *Empty) (*BillingListResult, error)
+	// Delete requires ownership of the billing account (the caller must be its owner).
 	Delete(ctx context.Context, m *BillingDelete) (*Empty, error)
+	// Get requires ownership of the billing account (the caller must be its owner).
 	Get(ctx context.Context, m *BillingGet) (*BillingItem, error)
+	// Update requires ownership of the billing account (the caller must be its owner).
 	Update(ctx context.Context, m *BillingUpdate) (*Empty, error)
+	// Report requires ownership of the billing account (the caller must be its owner).
 	Report(ctx context.Context, m *BillingReport) (*BillingReportResult, error)
+	// SKUs requires no authentication (public static price list).
 	SKUs(ctx context.Context, m *Empty) (*BillingSKUs, error)
+	// Project requires the `project.get` permission.
 	Project(ctx context.Context, m *BillingProject) (*BillingProjectResult, error)
+	// ListInvoices requires ownership of the billing account (the caller must own the account).
 	ListInvoices(ctx context.Context, m *InvoiceList) (*InvoiceListResult, error)
+	// GetInvoice requires ownership of the invoice's billing account (the caller must own it).
 	GetInvoice(ctx context.Context, m *InvoiceGet) (*InvoiceItem, error)
+	// DownloadInvoice requires ownership of the invoice's billing account (enforced via GetInvoice).
 	DownloadInvoice(ctx context.Context, m *InvoiceGet) (*InvoiceDownloadResult, error)
 	// DownloadReceipt renders the receipt / tax-invoice PDF for a PAID invoice.
 	// Calling it on a draft/open/void invoice returns ErrInvoiceNotPaid.
+	// DownloadReceipt requires ownership of the invoice's billing account (enforced via GetInvoice).
 	DownloadReceipt(ctx context.Context, m *InvoiceGet) (*InvoiceDownloadResult, error)
+	// UploadTransferSlip requires ownership of the invoice's billing account (enforced via GetInvoice).
 	UploadTransferSlip(ctx context.Context, m *InvoiceUploadSlip) (*InvoiceUploadSlipResult, error)
 }
 
