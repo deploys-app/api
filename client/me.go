@@ -28,6 +28,15 @@ func (c meClient) Authorized(ctx context.Context, m *api.MeAuthorized) (*api.MeA
 	return &res, nil
 }
 
+func (c meClient) Permissions(ctx context.Context, m *api.MePermissions) (*api.MePermissionsResult, error) {
+	var res api.MePermissionsResult
+	err := c.inv.invoke(ctx, "me.permissions", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 func (c meClient) UploadKYCDocument(ctx context.Context, _ *api.MeUploadKYCDocument) (*api.MeUploadKYCDocumentResult, error) {
 	return nil, nil
 }
