@@ -19,6 +19,7 @@ type Interface interface {
 	EnvGroup() EnvGroup
 	Collector() Collector
 	Deployer() Deployer
+	Access() Access
 	AuditLog() AuditLog
 	Dropbox() Dropbox
 	GitHub() GitHub
