@@ -129,6 +129,10 @@ func (c *Client) Deployer() api.Deployer {
 	return deployerClient{c}
 }
 
+func (c *Client) Access() api.Access {
+	return accessClient{c}
+}
+
 func (c *Client) AuditLog() api.AuditLog {
 	return auditLogClient{c}
 }
