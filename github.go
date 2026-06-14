@@ -78,18 +78,16 @@ type GitHubLink struct {
 	InstallationID int64  `json:"installationId" yaml:"installationId"` // github app installation id, optional
 	ServiceAccount string `json:"serviceAccount" yaml:"serviceAccount"` // service account sid in the project
 
-	// ProductionBranch is optional. When set, the server only accepts
-	// push-event GitHub OIDC tokens whose ref is this branch —
-	// pull_request events remain allowed for TTL previews. Empty means
-	// no branch restriction.
+	// ProductionBranch selects which branch deploys to production for the "all"
+	// and "branch" triggers — push-event GitHub OIDC tokens whose ref is this
+	// branch are accepted; others are rejected. Empty means any branch. Ignored
+	// by the "pr" trigger (which never deploys a branch).
 	ProductionBranch string `json:"productionBranch" yaml:"productionBranch"`
 
-	// PROnly restricts the link to pull-request preview deploys only: the
-	// server rejects every non-pull_request event (any branch push, any tag)
-	// at token exchange and refuses production-environment notifications. It is
-	// the strictest policy — no branch ever deploys. Mutually exclusive with
-	// ProductionBranch. Default false.
-	PROnly bool `json:"prOnly" yaml:"prOnly"`
+	// Trigger selects which workflow runs deploy: "all" (push to the production
+	// branch + pull-request previews, the default), "branch" (push only, no
+	// previews), or "pr" (previews only, no branch ever deploys).
+	Trigger GitHubTrigger `json:"trigger" yaml:"trigger"`
 }
 
 func (m *GitHubLink) Valid() error {
@@ -119,8 +117,8 @@ func (m *GitHubLink) Valid() error {
 		v.Must(!strings.HasPrefix(m.ProductionBranch, "-"), "productionBranch invalid")
 		v.Must(!strings.HasPrefix(m.ProductionBranch, "refs/"), "productionBranch invalid")
 	}
-	if m.PROnly {
-		v.Must(m.ProductionBranch == "", "productionBranch must be empty in pr-only mode")
+	if v.Must(m.Trigger.Valid(), "trigger must be all, branch, or pr") {
+		v.Must(m.Trigger != GitHubTriggerPR || m.ProductionBranch == "", "productionBranch must be empty for the pr trigger")
 	}
 
 	return WrapValidate(v)
@@ -153,15 +151,15 @@ func (m *GitHubList) Valid() error {
 }
 
 type GitHubLinkItem struct {
-	RepositoryID        int64     `json:"repositoryId" yaml:"repositoryId"`
-	Repository          string    `json:"repository" yaml:"repository"`
-	InstallationID      int64     `json:"installationId" yaml:"installationId"`
-	ServiceAccount      string    `json:"serviceAccount" yaml:"serviceAccount"`
-	ServiceAccountEmail string    `json:"serviceAccountEmail" yaml:"serviceAccountEmail"`
-	ProductionBranch    string    `json:"productionBranch" yaml:"productionBranch"` // empty = no restriction
-	PROnly              bool      `json:"prOnly" yaml:"prOnly"`                     // pull-request previews only, no branch deploys
-	CreatedAt           time.Time `json:"createdAt" yaml:"createdAt"`
-	CreatedBy           string    `json:"createdBy" yaml:"createdBy"`
+	RepositoryID        int64         `json:"repositoryId" yaml:"repositoryId"`
+	Repository          string        `json:"repository" yaml:"repository"`
+	InstallationID      int64         `json:"installationId" yaml:"installationId"`
+	ServiceAccount      string        `json:"serviceAccount" yaml:"serviceAccount"`
+	ServiceAccountEmail string        `json:"serviceAccountEmail" yaml:"serviceAccountEmail"`
+	ProductionBranch    string        `json:"productionBranch" yaml:"productionBranch"` // empty = any branch (all/branch triggers)
+	Trigger             GitHubTrigger `json:"trigger" yaml:"trigger"`                   // all | branch | pr
+	CreatedAt           time.Time     `json:"createdAt" yaml:"createdAt"`
+	CreatedBy           string        `json:"createdBy" yaml:"createdBy"`
 }
 
 type GitHubListResult struct {
@@ -171,20 +169,21 @@ type GitHubListResult struct {
 
 func (m *GitHubListResult) Table() [][]string {
 	table := [][]string{
-		{"REPOSITORY", "REPOSITORY ID", "SERVICE ACCOUNT", "BRANCH", "AGE"},
+		{"REPOSITORY", "REPOSITORY ID", "SERVICE ACCOUNT", "TRIGGER", "BRANCH", "AGE"},
 	}
 	for _, x := range m.Items {
 		branch := x.ProductionBranch
-		switch {
-		case x.PROnly:
-			branch = "pr-only"
-		case branch == "":
-			branch = "-"
+		if branch == "" {
+			branch = "-" // any branch (all/branch triggers)
+		}
+		if !x.Trigger.DeploysBranch() {
+			branch = "-" // pr trigger never deploys a branch
 		}
 		table = append(table, []string{
 			x.Repository,
 			strconv.FormatInt(x.RepositoryID, 10),
 			x.ServiceAccount,
+			x.Trigger.String(),
 			branch,
 			age(x.CreatedAt),
 		})
