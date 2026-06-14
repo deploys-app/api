@@ -28,6 +28,15 @@ func (c githubClient) Unlink(ctx context.Context, m *api.GitHubUnlink) (*api.Emp
 	return &res, nil
 }
 
+func (c githubClient) Update(ctx context.Context, m *api.GitHubUpdate) (*api.Empty, error) {
+	var res api.Empty
+	err := c.inv.invoke(ctx, "github.update", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 func (c githubClient) List(ctx context.Context, m *api.GitHubList) (*api.GitHubListResult, error) {
 	var res api.GitHubListResult
 	err := c.inv.invoke(ctx, "github.list", m, &res)

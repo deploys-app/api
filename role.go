@@ -100,6 +100,7 @@ var permissions = []string{
 	"github.*",
 	"github.link",
 	"github.unlink",
+	"github.update",
 	"github.list",
 }
 

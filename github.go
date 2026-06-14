@@ -16,6 +16,11 @@ type GitHub interface {
 	Link(ctx context.Context, m *GitHubLink) (*Empty, error)
 	// Unlink requires the `github.unlink` permission.
 	Unlink(ctx context.Context, m *GitHubUnlink) (*Empty, error)
+	// Update changes an existing link's service account, deploy trigger, and
+	// production branch in place. The repository id and installation id are
+	// immutable — changing the repository means a new link.
+	// Update requires the `github.update` permission.
+	Update(ctx context.Context, m *GitHubUpdate) (*Empty, error)
 	// List requires the `github.list` permission.
 	List(ctx context.Context, m *GitHubList) (*GitHubListResult, error)
 
@@ -104,6 +109,46 @@ func (m *GitHubLink) Valid() error {
 		v.Must(ReValidGitHubRepository.MatchString(m.Repository), "repository must be in owner/name format")
 	}
 	v.Must(m.InstallationID >= 0, "installationId invalid")
+	if v.Must(m.ServiceAccount != "", "serviceAccount required") {
+		v.Mustf(ReValidSID.MatchString(m.ServiceAccount), "serviceAccount invalid %s", ReValidSIDStr)
+		cnt := utf8.RuneCountInString(m.ServiceAccount)
+		v.Must(cnt >= 3 && cnt <= 20, "serviceAccount must have length between 3-20 characters")
+	}
+	if m.ProductionBranch != "" { // optional, empty = no restriction
+		v.Must(utf8.RuneCountInString(m.ProductionBranch) <= 255, "productionBranch too long")
+		v.Must(!strings.ContainsAny(m.ProductionBranch, " \t\n\r"), "productionBranch invalid")
+		v.Must(!strings.Contains(m.ProductionBranch, ".."), "productionBranch invalid")
+		v.Must(!strings.HasPrefix(m.ProductionBranch, "/") && !strings.HasSuffix(m.ProductionBranch, "/"), "productionBranch invalid")
+		v.Must(!strings.HasPrefix(m.ProductionBranch, "-"), "productionBranch invalid")
+		v.Must(!strings.HasPrefix(m.ProductionBranch, "refs/"), "productionBranch invalid")
+	}
+	if v.Must(m.Trigger.Valid(), "trigger must be all, branch, or pr") {
+		v.Must(m.Trigger != GitHubTriggerPR || m.ProductionBranch == "", "productionBranch must be empty for the pr trigger")
+	}
+
+	return WrapValidate(v)
+}
+
+// GitHubUpdate edits an existing link in place. RepositoryID identifies the
+// link; the service account, deploy trigger, and production branch are the
+// mutable fields. The repository's owner/name and installation id are immutable
+// and so are not part of this request.
+type GitHubUpdate struct {
+	Project          string        `json:"project" yaml:"project"`
+	RepositoryID     int64         `json:"repositoryId" yaml:"repositoryId"`     // immutable github repository id, identifies the link
+	ServiceAccount   string        `json:"serviceAccount" yaml:"serviceAccount"` // service account sid in the project
+	ProductionBranch string        `json:"productionBranch" yaml:"productionBranch"`
+	Trigger          GitHubTrigger `json:"trigger" yaml:"trigger"`
+}
+
+func (m *GitHubUpdate) Valid() error {
+	m.ServiceAccount = strings.TrimSpace(m.ServiceAccount)
+	m.ProductionBranch = strings.TrimSpace(m.ProductionBranch)
+
+	v := validator.New()
+
+	v.Must(m.Project != "", "project required")
+	v.Must(m.RepositoryID > 0, "repositoryId required")
 	if v.Must(m.ServiceAccount != "", "serviceAccount required") {
 		v.Mustf(ReValidSID.MatchString(m.ServiceAccount), "serviceAccount invalid %s", ReValidSIDStr)
 		cnt := utf8.RuneCountInString(m.ServiceAccount)
