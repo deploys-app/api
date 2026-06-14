@@ -279,6 +279,11 @@ type GitHubExchangeTokenResult struct {
 // "pr-<n>" (the transient preview environment for pull request n).
 var ReValidGitHubEnvironment = regexp.MustCompile(`^(production|pr-[1-9][0-9]*)$`)
 
+// ReValidGitHubSHA matches a full git object id (SHA-1 or SHA-256). HeadSHA is
+// only ever rendered or used as a GitHub deployment ref, so it must be a real
+// commit id and never an arbitrary commitish (a branch name, "HEAD~3", ...).
+var ReValidGitHubSHA = regexp.MustCompile(`^([0-9a-f]{40}|[0-9a-f]{64})$`)
+
 type GitHubNotify struct {
 	Event       string `json:"event" yaml:"event"`             // started | success | failure
 	Project     string `json:"project" yaml:"project"`         // must match the repository link
@@ -286,10 +291,15 @@ type GitHubNotify struct {
 	Deployment  string `json:"deployment" yaml:"deployment"`   // deploys.app deployment name
 	Environment string `json:"environment" yaml:"environment"` // production | pr-<n>
 	PRNumber    int64  `json:"prNumber" yaml:"prNumber"`       // 0 for production
-	SHA         string `json:"sha" yaml:"sha"`                 // must equal the token's sha claim
-	Ref         string `json:"ref" yaml:"ref"`
-	URL         string `json:"url" yaml:"url"`     // success only: the deployed url
-	Image       string `json:"image" yaml:"image"` // success only: the deployed image (digest form)
+	SHA         string `json:"sha" yaml:"sha"`                 // must equal the token's sha claim (on PRs, the refs/pull/N/merge merge commit)
+	// HeadSHA is the contributor's pushed commit (github.event.pull_request.head.sha).
+	// Empty on push/production runs, where SHA already is the pushed tip. It is
+	// used only for display (the PR comment) and as the GitHub deployment ref —
+	// never for authorization — so the anti-spoof binding stays on SHA.
+	HeadSHA string `json:"headSha" yaml:"headSha"`
+	Ref     string `json:"ref" yaml:"ref"`
+	URL     string `json:"url" yaml:"url"`     // success only: the deployed url
+	Image   string `json:"image" yaml:"image"` // success only: the deployed image (digest form)
 }
 
 func (m *GitHubNotify) Valid() error {
@@ -298,6 +308,7 @@ func (m *GitHubNotify) Valid() error {
 	m.Deployment = strings.TrimSpace(m.Deployment)
 	m.Environment = strings.TrimSpace(m.Environment)
 	m.SHA = strings.TrimSpace(m.SHA)
+	m.HeadSHA = strings.ToLower(strings.TrimSpace(m.HeadSHA))
 
 	v := validator.New()
 
@@ -306,6 +317,7 @@ func (m *GitHubNotify) Valid() error {
 	v.Must(m.Location != "", "location required")
 	v.Must(m.Deployment != "", "deployment required")
 	v.Must(m.SHA != "", "sha required")
+	v.Must(m.HeadSHA == "" || ReValidGitHubSHA.MatchString(m.HeadSHA), "headSha must be a commit sha")
 	if v.Must(ReValidGitHubEnvironment.MatchString(m.Environment), "environment must be production or pr-<n>") {
 		if m.Environment == "production" {
 			v.Must(m.PRNumber == 0, "prNumber must be 0 for production")
