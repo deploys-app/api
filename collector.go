@@ -32,6 +32,11 @@ type CollectorLocationResult struct {
 type CollectorProject struct {
 	ID int64 `json:"id,string" yaml:"id"`
 
+	// SID is the project's string id (e.g. "acme"). The collector uses it to
+	// attribute static-gateway request metrics — which are labeled by project
+	// SID, not numeric id — back to the numeric project id.
+	SID string `json:"sid" yaml:"sid"`
+
 	// Domains are the hostnames routed to this project in the requested
 	// location (from the routes table; wildcard domains keep their "*." prefix).
 	// The collector uses them to attribute edge cache egress (per-host
