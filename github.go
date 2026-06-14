@@ -83,6 +83,13 @@ type GitHubLink struct {
 	// pull_request events remain allowed for TTL previews. Empty means
 	// no branch restriction.
 	ProductionBranch string `json:"productionBranch" yaml:"productionBranch"`
+
+	// PROnly restricts the link to pull-request preview deploys only: the
+	// server rejects every non-pull_request event (any branch push, any tag)
+	// at token exchange and refuses production-environment notifications. It is
+	// the strictest policy — no branch ever deploys. Mutually exclusive with
+	// ProductionBranch. Default false.
+	PROnly bool `json:"prOnly" yaml:"prOnly"`
 }
 
 func (m *GitHubLink) Valid() error {
@@ -111,6 +118,9 @@ func (m *GitHubLink) Valid() error {
 		v.Must(!strings.HasPrefix(m.ProductionBranch, "/") && !strings.HasSuffix(m.ProductionBranch, "/"), "productionBranch invalid")
 		v.Must(!strings.HasPrefix(m.ProductionBranch, "-"), "productionBranch invalid")
 		v.Must(!strings.HasPrefix(m.ProductionBranch, "refs/"), "productionBranch invalid")
+	}
+	if m.PROnly {
+		v.Must(m.ProductionBranch == "", "productionBranch must be empty in pr-only mode")
 	}
 
 	return WrapValidate(v)
@@ -149,6 +159,7 @@ type GitHubLinkItem struct {
 	ServiceAccount      string    `json:"serviceAccount" yaml:"serviceAccount"`
 	ServiceAccountEmail string    `json:"serviceAccountEmail" yaml:"serviceAccountEmail"`
 	ProductionBranch    string    `json:"productionBranch" yaml:"productionBranch"` // empty = no restriction
+	PROnly              bool      `json:"prOnly" yaml:"prOnly"`                     // pull-request previews only, no branch deploys
 	CreatedAt           time.Time `json:"createdAt" yaml:"createdAt"`
 	CreatedBy           string    `json:"createdBy" yaml:"createdBy"`
 }
@@ -164,7 +175,10 @@ func (m *GitHubListResult) Table() [][]string {
 	}
 	for _, x := range m.Items {
 		branch := x.ProductionBranch
-		if branch == "" {
+		switch {
+		case x.PROnly:
+			branch = "pr-only"
+		case branch == "":
 			branch = "-"
 		}
 		table = append(table, []string{
