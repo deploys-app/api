@@ -144,12 +144,23 @@ type HTTPGetAction struct {
 }
 
 type DeployerCommandRouteCreate struct {
-	ID        int64       `json:"id"`
-	ProjectID int64       `json:"projectId"`
-	Domain    string      `json:"domain"`
-	Path      string      `json:"path"`
-	Target    string      `json:"target"`
-	Config    RouteConfig `json:"config"`
+	ID        int64  `json:"id"`
+	ProjectID int64  `json:"projectId"`
+	Domain    string `json:"domain"`
+	Path      string `json:"path"`
+	Target    string `json:"target"`
+	// TargetType is set for deployment:// targets so the deployer can tell a
+	// Static target from a container (WebService) one. Static deployments have
+	// no per-deployment Service — they are served by the shared static-gateway —
+	// so the deployer must back the ingress with static-gateway + SitePrefix
+	// instead of a per-deployment Service. Empty for non-deployment targets.
+	TargetType DeploymentType `json:"targetType"`
+	// SitePrefix is set only when TargetType is DeploymentTypeStatic: the
+	// release prefix "<project>/<name>/<release-sha>" the static-gateway uses to
+	// locate the release in object storage (carried in the ingress upstream-path,
+	// mirroring the static deployment's default-URL ingress).
+	SitePrefix string      `json:"sitePrefix"`
+	Config     RouteConfig `json:"config"`
 }
 
 type DeployerCommandRouteDelete struct {
