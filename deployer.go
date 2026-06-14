@@ -161,6 +161,18 @@ type DeployerCommandRouteCreate struct {
 	// mirroring the static deployment's default-URL ingress).
 	SitePrefix string      `json:"sitePrefix"`
 	Config     RouteConfig `json:"config"`
+	// TargetDeploymentID is the numeric id of the deployment a deployment://
+	// target resolves to. Set by the apiserver (zero for non-deployment
+	// targets). The deployer needs it to stamp the deployment-access forward-auth
+	// gate (access.deploys.app/verify?d=<TargetDeploymentID>) on the route's
+	// ingress, mirroring the deployment's default-URL ingress.
+	TargetDeploymentID int64 `json:"targetDeploymentId"`
+	// Access mirrors the target deployment's access policy at command-emit time.
+	// When non-nil with RequireGoogleLogin true the deployer gates this route's
+	// ingress; nil/false leaves it ungated (and clears any prior gate). Carried
+	// here so toggling a deployment's access re-stamps its routes on the next
+	// reconcile. Empty for non-deployment targets.
+	Access *DeploymentAccessConfig `json:"access"`
 }
 
 type DeployerCommandRouteDelete struct {

@@ -34,4 +34,10 @@ type AccessPolicyResult struct {
 	RequireGoogleLogin bool     `json:"requireGoogleLogin" yaml:"requireGoogleLogin"`
 	AllowedEmails      []string `json:"allowedEmails" yaml:"allowedEmails"`
 	AllowedDomains     []string `json:"allowedDomains" yaml:"allowedDomains"`
+	// Hosts are the deployment's gated hostnames: its default URL plus every
+	// custom-domain route that targets it. The verifier uses this as the
+	// redirect/handoff allowlist so it will only set a host-only session cookie
+	// for a domain that legitimately belongs to this deployment (closing the
+	// open-redirect/cookie-injection hole for arbitrary custom domains).
+	Hosts []string `json:"hosts" yaml:"hosts"`
 }
