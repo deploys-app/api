@@ -300,6 +300,13 @@ func (m *DeploymentDeploy) Valid() error {
 		v.Must(len(m.Sidecars) == 0, "sidecars not allowed for static")
 		v.Must(m.PullSecret == nil || *m.PullSecret == "", "pullSecret not allowed for static")
 		v.Must(m.WorkloadIdentity == nil || *m.WorkloadIdentity == "", "workloadIdentity not allowed for static")
+		// A Static deployment runs no container, so env vars, env groups and
+		// mount data have nothing to read them: the deployer serves the release
+		// from the static-gateway and never builds a pod/ConfigMap. Reject them
+		// rather than silently storing dead data.
+		v.Must(len(m.Env) == 0 && len(m.AddEnv) == 0 && len(m.RemoveEnv) == 0, "env not allowed for static")
+		v.Must(len(m.EnvGroups) == 0 && len(m.AddEnvGroups) == 0 && len(m.RemoveEnvGroups) == 0, "envGroups not allowed for static")
+		v.Must(len(m.MountData) == 0, "mountData not allowed for static")
 	} else {
 		v.Must(m.Site == "", "site not allowed")
 		if v.Must(m.Image != "", "image required") {
