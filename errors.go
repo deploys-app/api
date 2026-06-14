@@ -73,6 +73,7 @@ var (
 	ErrGitHubProjectMismatch         = newError("api: github project does not match repository link")
 	ErrGitHubAppNotInstalled         = newError("api: github app is not installed on the repository")
 	ErrGitHubBranchNotAllowed        = newError("api: github ref is not the configured production branch")
+	ErrGitHubProductionDisabled      = newError("api: github production deploys are disabled (pr-only mode)")
 )
 
 var AllErrors []error
