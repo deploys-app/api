@@ -37,6 +37,15 @@ func (c githubClient) Update(ctx context.Context, m *api.GitHubUpdate) (*api.Emp
 	return &res, nil
 }
 
+func (c githubClient) SetWorkflowConfig(ctx context.Context, m *api.GitHubSetWorkflowConfig) (*api.Empty, error) {
+	var res api.Empty
+	err := c.inv.invoke(ctx, "github.setWorkflowConfig", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 func (c githubClient) List(ctx context.Context, m *api.GitHubList) (*api.GitHubListResult, error) {
 	var res api.GitHubListResult
 	err := c.inv.invoke(ctx, "github.list", m, &res)
