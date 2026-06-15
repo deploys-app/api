@@ -21,6 +21,13 @@ type GitHub interface {
 	// immutable — changing the repository means a new link.
 	// Update requires the `github.update` permission.
 	Update(ctx context.Context, m *GitHubUpdate) (*Empty, error)
+	// SetWorkflowConfig stores the console workflow-generator inputs for an
+	// existing link so the generator can pre-fill them later. It is config-only
+	// and does not touch the link's service account, trigger, or production
+	// branch. The build-deploy action re-validates everything at deploy time, so
+	// the config is an opaque round-trip blob.
+	// SetWorkflowConfig requires the `github.update` permission.
+	SetWorkflowConfig(ctx context.Context, m *GitHubSetWorkflowConfig) (*Empty, error)
 	// List requires the `github.list` permission.
 	List(ctx context.Context, m *GitHubList) (*GitHubListResult, error)
 
@@ -169,6 +176,85 @@ func (m *GitHubUpdate) Valid() error {
 	return WrapValidate(v)
 }
 
+// GitHubWorkflowConfig is the console's saved workflow-generator inputs for a
+// linked repository — an opaque round-trip blob: the console writes exactly what
+// the user configured and reads it back to pre-fill the generator. The
+// build-deploy action re-validates everything at deploy time, so Valid only
+// bounds field shapes/sizes to keep the stored blob sane.
+type GitHubWorkflowConfig struct {
+	Name               string   `json:"name" yaml:"name"`
+	Location           string   `json:"location" yaml:"location"`
+	BuildType          string   `json:"buildType" yaml:"buildType"` // dockerfile | static
+	Port               int      `json:"port" yaml:"port"`
+	Protocol           string   `json:"protocol" yaml:"protocol"`   // http | https | h2c
+	Framework          string   `json:"framework" yaml:"framework"` // auto | hugo | node
+	BuildCommand       string   `json:"buildCommand" yaml:"buildCommand"`
+	OutputDir          string   `json:"outputDir" yaml:"outputDir"`
+	SPA                bool     `json:"spa" yaml:"spa"`
+	NotFound           string   `json:"notFound" yaml:"notFound"`
+	WorkingDirectory   string   `json:"workingDirectory" yaml:"workingDirectory"`
+	Env                string   `json:"env" yaml:"env"` // raw KEY=VALUE lines, as typed
+	EnvGroups          []string `json:"envGroups" yaml:"envGroups"`
+	PullSecret         string   `json:"pullSecret" yaml:"pullSecret"`
+	RequireGoogleLogin bool     `json:"requireGoogleLogin" yaml:"requireGoogleLogin"`
+	AllowedEmails      string   `json:"allowedEmails" yaml:"allowedEmails"` // raw lines, as typed
+	AllowedDomains     string   `json:"allowedDomains" yaml:"allowedDomains"`
+}
+
+func (m *GitHubWorkflowConfig) Valid() error {
+	m.BuildType = strings.TrimSpace(m.BuildType)
+	m.Protocol = strings.TrimSpace(m.Protocol)
+	m.Framework = strings.TrimSpace(m.Framework)
+
+	v := validator.New()
+
+	v.Must(m.BuildType == "" || m.BuildType == "dockerfile" || m.BuildType == "static", "buildType must be dockerfile or static")
+	v.Must(m.Port >= 0 && m.Port <= 65535, "port out of range")
+	v.Must(m.Protocol == "" || m.Protocol == "http" || m.Protocol == "https" || m.Protocol == "h2c", "protocol must be http, https, or h2c")
+	v.Must(m.Framework == "" || m.Framework == "auto" || m.Framework == "hugo" || m.Framework == "node", "framework must be auto, hugo, or node")
+	v.Must(utf8.RuneCountInString(m.Name) <= 253, "name too long")
+	v.Must(utf8.RuneCountInString(m.Location) <= 253, "location too long")
+	v.Must(utf8.RuneCountInString(m.BuildCommand) <= 1000, "buildCommand too long")
+	v.Must(utf8.RuneCountInString(m.OutputDir) <= 255, "outputDir too long")
+	v.Must(utf8.RuneCountInString(m.NotFound) <= 255, "notFound too long")
+	v.Must(utf8.RuneCountInString(m.WorkingDirectory) <= 255, "workingDirectory too long")
+	v.Must(utf8.RuneCountInString(m.PullSecret) <= 253, "pullSecret too long")
+	v.Must(utf8.RuneCountInString(m.Env) <= 10000, "env too long")
+	v.Must(utf8.RuneCountInString(m.AllowedEmails) <= 10000, "allowedEmails too long")
+	v.Must(utf8.RuneCountInString(m.AllowedDomains) <= 10000, "allowedDomains too long")
+	if v.Must(len(m.EnvGroups) <= 100, "too many envGroups") {
+		for _, g := range m.EnvGroups {
+			v.Must(utf8.RuneCountInString(g) <= 253, "envGroup name too long")
+		}
+	}
+
+	return WrapValidate(v)
+}
+
+// GitHubSetWorkflowConfig stores the console workflow-generator inputs for the
+// link identified by RepositoryID. It is config-only and leaves the link's
+// service account, trigger, and production branch untouched.
+type GitHubSetWorkflowConfig struct {
+	Project        string                `json:"project" yaml:"project"`
+	RepositoryID   int64                 `json:"repositoryId" yaml:"repositoryId"`
+	WorkflowConfig *GitHubWorkflowConfig `json:"workflowConfig" yaml:"workflowConfig"`
+}
+
+func (m *GitHubSetWorkflowConfig) Valid() error {
+	v := validator.New()
+
+	v.Must(m.Project != "", "project required")
+	v.Must(m.RepositoryID > 0, "repositoryId required")
+	if !v.Must(m.WorkflowConfig != nil, "workflowConfig required") {
+		return WrapValidate(v)
+	}
+	if err := WrapValidate(v); err != nil {
+		return err
+	}
+
+	return m.WorkflowConfig.Valid()
+}
+
 type GitHubUnlink struct {
 	Project      string `json:"project" yaml:"project"`
 	RepositoryID int64  `json:"repositoryId" yaml:"repositoryId"`
@@ -205,6 +291,9 @@ type GitHubLinkItem struct {
 	Trigger             GitHubTrigger `json:"trigger" yaml:"trigger"`                   // all | branch | pr
 	CreatedAt           time.Time     `json:"createdAt" yaml:"createdAt"`
 	CreatedBy           string        `json:"createdBy" yaml:"createdBy"`
+	// WorkflowConfig is the console's saved workflow-generator inputs for this
+	// link, so the generator can pre-fill them. nil when never saved.
+	WorkflowConfig *GitHubWorkflowConfig `json:"workflowConfig,omitempty" yaml:"workflowConfig,omitempty"`
 }
 
 type GitHubListResult struct {
