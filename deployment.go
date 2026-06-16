@@ -713,6 +713,9 @@ type DeploymentMetricsResult struct {
 	MemoryLimit []*DeploymentMetricsLine `json:"memoryLimit" yaml:"memoryLimit"`
 	Requests    []*DeploymentMetricsLine `json:"requests" yaml:"requests"`
 	Egress      []*DeploymentMetricsLine `json:"egress" yaml:"egress"`
+	// Storage is the daily static-web storage gauge (bytes); populated only for
+	// Static deployments.
+	Storage []*DeploymentMetricsLine `json:"storage" yaml:"storage"`
 }
 
 type DeploymentMetricsLine struct {
