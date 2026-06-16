@@ -26,6 +26,8 @@ type Project interface {
 	Usage(ctx context.Context, m *ProjectUsage) (*ProjectUsageResult, error)
 	// StorageMetrics requires the `project.get` permission.
 	StorageMetrics(ctx context.Context, m *ProjectStorageMetrics) (*ProjectStorageMetricsResult, error)
+	// Metrics requires the `project.get` permission.
+	Metrics(ctx context.Context, m *ProjectMetrics) (*ProjectMetricsResult, error)
 }
 
 type ProjectCreate struct {
@@ -194,5 +196,39 @@ func (m *ProjectStorageMetrics) Valid() error {
 // ProjectStorageMetricsResult carries the per-day static-web storage gauge
 // (bytes) as a single project-wide series.
 type ProjectStorageMetricsResult struct {
+	StaticStorage []*UsageMetricsLine `json:"staticStorage" yaml:"staticStorage"`
+}
+
+// ProjectMetrics requests the daily project-level usage series for the project
+// metrics page (CPU, memory, egress, replicas, static storage).
+type ProjectMetrics struct {
+	Project   string                `json:"project" yaml:"project"`
+	TimeRange UsageMetricsTimeRange `json:"timeRange" yaml:"timeRange"`
+}
+
+func (m *ProjectMetrics) Valid() error {
+	if m.Project == "" {
+		return newError("project required")
+	}
+	if m.TimeRange == "" {
+		m.TimeRange = UsageMetricsTimeRange30d
+	}
+	if !validUsageMetricsTimeRange[m.TimeRange] {
+		return newError("timeRange invalid")
+	}
+	return nil
+}
+
+// ProjectMetricsResult carries daily project-wide usage series. CPUUsage,
+// Memory, Disk and Replica are per-second averages for each day (the integrated
+// daily quantity divided by seconds/day), so they read as levels (vCPU, bytes,
+// replicas). Egress is the day's total bytes (pod + cache + WAF egress folded).
+// StaticStorage is the day's storage gauge in bytes.
+type ProjectMetricsResult struct {
+	CPUUsage      []*UsageMetricsLine `json:"cpuUsage" yaml:"cpuUsage"`
+	Memory        []*UsageMetricsLine `json:"memory" yaml:"memory"`
+	Disk          []*UsageMetricsLine `json:"disk" yaml:"disk"`
+	Egress        []*UsageMetricsLine `json:"egress" yaml:"egress"`
+	Replica       []*UsageMetricsLine `json:"replica" yaml:"replica"`
 	StaticStorage []*UsageMetricsLine `json:"staticStorage" yaml:"staticStorage"`
 }

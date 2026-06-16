@@ -72,3 +72,12 @@ func (c projectClient) StorageMetrics(ctx context.Context, m *api.ProjectStorage
 	}
 	return &res, nil
 }
+
+func (c projectClient) Metrics(ctx context.Context, m *api.ProjectMetrics) (*api.ProjectMetricsResult, error) {
+	var res api.ProjectMetricsResult
+	err := c.inv.invoke(ctx, "project.metrics", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
