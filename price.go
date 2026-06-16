@@ -10,6 +10,11 @@ const (
 	PriceDisk           = 0.000004 // GiB/s
 	PriceReplica        = 0.000004 // replica/s
 
+	// PriceStaticStorage is the static-web object-storage rate in THB per
+	// GiB-month. The billing cron applies it to a once-daily byte gauge with
+	// Unit = unitGiB * 30, so a month is realized as ~30 daily snapshots.
+	PriceStaticStorage = 1 // GiB-month
+
 	// External HTTP routes ("bring your own server" + WAF). The customer brings
 	// the compute, so we bill only edge egress served from the edge — no flat
 	// per-route fee. Default anchors to the egress rate and is overridable per
