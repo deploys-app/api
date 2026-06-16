@@ -37,6 +37,15 @@ func (c meClient) Permissions(ctx context.Context, m *api.MePermissions) (*api.M
 	return &res, nil
 }
 
+func (c meClient) GenerateToken(ctx context.Context, m *api.MeGenerateToken) (*api.MeGenerateTokenResult, error) {
+	var res api.MeGenerateTokenResult
+	err := c.inv.invoke(ctx, "me.generateToken", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 func (c meClient) UploadKYCDocument(ctx context.Context, _ *api.MeUploadKYCDocument) (*api.MeUploadKYCDocumentResult, error) {
 	return nil, nil
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"mime/multipart"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/moonrhythm/validator"
 )
@@ -15,8 +17,75 @@ type Me interface {
 	Authorized(ctx context.Context, m *MeAuthorized) (*MeAuthorizedResult, error)
 	// Permissions requires authentication only (no specific permission; returns the caller's own effective permissions for a project).
 	Permissions(ctx context.Context, m *MePermissions) (*MePermissionsResult, error)
+	// GenerateToken mints a short-lived bearer token scoped to a project and a
+	// subset of the caller's own permissions. The caller must already hold every
+	// requested permission on the project; the minted token is strictly weaker
+	// than the caller (it grants only the requested permissions on the requested
+	// project). Intended for handing a narrowly-scoped credential to an automated
+	// agent — e.g. to upload a file to dropbox — without exposing a full token.
+	GenerateToken(ctx context.Context, m *MeGenerateToken) (*MeGenerateTokenResult, error)
 	// UploadKYCDocument requires authentication only (no specific permission; the caller uploads their own KYC document).
 	UploadKYCDocument(ctx context.Context, m *MeUploadKYCDocument) (*MeUploadKYCDocumentResult, error)
+}
+
+// GenerateTokenPermissions is the closed set of permissions a me.generateToken
+// token may carry. It is intentionally restricted to the no-CLI upload flow
+// (host an archive in dropbox, then publish it) rather than allowing an
+// arbitrary downscope of the caller's permissions. Extend it as new agent flows
+// need it.
+var GenerateTokenPermissions = []string{
+	"dropbox.upload",
+	"site.publish",
+}
+
+// MeGenerateToken requests a scoped, short-lived token. Permissions must be a
+// subset of GenerateTokenPermissions, and the caller must already hold each on
+// Project. TTLSeconds defaults to 900 (15m) and is clamped to [60, 3600].
+type MeGenerateToken struct {
+	Project     string   `json:"project" yaml:"project"`
+	Permissions []string `json:"permissions" yaml:"permissions"`
+	TTLSeconds  int      `json:"ttlSeconds" yaml:"ttlSeconds"`
+}
+
+func (m *MeGenerateToken) Valid() error {
+	if m.TTLSeconds == 0 {
+		m.TTLSeconds = 900
+	}
+
+	v := validator.New()
+	v.Must(m.Project != "", "project required")
+	v.Must(len(m.Permissions) > 0, "permissions required")
+	for _, p := range m.Permissions {
+		v.Mustf(stringInSlice(p, GenerateTokenPermissions),
+			"permission %q is not allowed for generated tokens (allowed: %s)", p, strings.Join(GenerateTokenPermissions, ", "))
+	}
+	v.Must(m.TTLSeconds >= 60 && m.TTLSeconds <= 3600, "ttlSeconds must be between 60 and 3600")
+	return WrapValidate(v)
+}
+
+// MeGenerateTokenResult carries the minted token. Token is returned only here
+// (it is stored hashed) — capture it from this response.
+type MeGenerateTokenResult struct {
+	Token       string    `json:"token" yaml:"token"`
+	ExpiresAt   time.Time `json:"expiresAt" yaml:"expiresAt"`
+	Project     string    `json:"project" yaml:"project"`
+	Permissions []string  `json:"permissions" yaml:"permissions"`
+}
+
+func (m *MeGenerateTokenResult) Table() [][]string {
+	return [][]string{
+		{"TOKEN", "EXPIRES AT", "PROJECT", "PERMISSIONS"},
+		{m.Token, m.ExpiresAt.Format(time.RFC3339), m.Project, strings.Join(m.Permissions, ",")},
+	}
+}
+
+func stringInSlice(s string, xs []string) bool {
+	for _, x := range xs {
+		if x == s {
+			return true
+		}
+	}
+	return false
 }
 
 type MeItem struct {
