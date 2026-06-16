@@ -50,6 +50,13 @@ type EnvGroupUpdate struct {
 	Env       map[string]string `json:"env" yaml:"env"`             // override all env
 	AddEnv    map[string]string `json:"addEnv" yaml:"addEnv"`       // add env to existing env
 	RemoveEnv []string          `json:"removeEnv" yaml:"removeEnv"` // remove env keys from existing env
+	// Redeploy, when true, redeploys (to a new revision) the deployments that
+	// reference this group so they pick up the new values; only the currently
+	// live ones are touched (paused/being-deleted ones are skipped). It defaults
+	// to false: the values are stored and take effect on each deployment's next
+	// deploy. Setting it true additionally requires the deployment.deploy
+	// permission.
+	Redeploy bool `json:"redeploy" yaml:"redeploy"`
 }
 
 func (m *EnvGroupUpdate) Valid() error {
