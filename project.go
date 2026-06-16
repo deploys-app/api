@@ -24,6 +24,8 @@ type Project interface {
 	Delete(ctx context.Context, m *ProjectDelete) (*Empty, error)
 	// Usage requires the `project.get` permission.
 	Usage(ctx context.Context, m *ProjectUsage) (*ProjectUsageResult, error)
+	// StorageMetrics requires the `project.get` permission.
+	StorageMetrics(ctx context.Context, m *ProjectStorageMetrics) (*ProjectStorageMetricsResult, error)
 }
 
 type ProjectCreate struct {
@@ -168,4 +170,29 @@ func (m *ProjectUsageResult) Table() [][]string {
 		{"Replica", humanize.CommafWithDigits(m.Replica, 2)},
 	}
 	return table
+}
+
+// ProjectStorageMetrics requests the daily project-level storage usage series.
+type ProjectStorageMetrics struct {
+	Project   string                `json:"project" yaml:"project"`
+	TimeRange UsageMetricsTimeRange `json:"timeRange" yaml:"timeRange"`
+}
+
+func (m *ProjectStorageMetrics) Valid() error {
+	if m.Project == "" {
+		return newError("project required")
+	}
+	if m.TimeRange == "" {
+		m.TimeRange = UsageMetricsTimeRange30d
+	}
+	if !validUsageMetricsTimeRange[m.TimeRange] {
+		return newError("timeRange invalid")
+	}
+	return nil
+}
+
+// ProjectStorageMetricsResult carries the per-day static-web storage gauge
+// (bytes) as a single project-wide series.
+type ProjectStorageMetricsResult struct {
+	StaticStorage []*UsageMetricsLine `json:"staticStorage" yaml:"staticStorage"`
 }
