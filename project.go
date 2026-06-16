@@ -157,6 +157,7 @@ type ProjectUsageResult struct {
 	DropboxEgress  float64 `json:"dropboxEgress" yaml:"dropboxEgress"`
 	Disk           float64 `json:"disk" yaml:"disk"`
 	Replica        float64 `json:"replica" yaml:"replica"`
+	StaticStorage  float64 `json:"staticStorage" yaml:"staticStorage"`
 }
 
 func (m *ProjectUsageResult) Table() [][]string {
@@ -170,6 +171,7 @@ func (m *ProjectUsageResult) Table() [][]string {
 		{"DropboxEgress", humanize.CommafWithDigits(m.DropboxEgress, 2)},
 		{"Disk", humanize.CommafWithDigits(m.Disk, 2)},
 		{"Replica", humanize.CommafWithDigits(m.Replica, 2)},
+		{"StaticStorage", humanize.CommafWithDigits(m.StaticStorage, 2)},
 	}
 	return table
 }
