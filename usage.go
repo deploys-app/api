@@ -11,12 +11,14 @@ type UsageMetricsLine struct {
 type UsageMetricsTimeRange string
 
 const (
+	UsageMetricsTimeRange1d  UsageMetricsTimeRange = "1d"
 	UsageMetricsTimeRange7d  UsageMetricsTimeRange = "7d"
 	UsageMetricsTimeRange30d UsageMetricsTimeRange = "30d"
 	UsageMetricsTimeRange90d UsageMetricsTimeRange = "90d"
 )
 
 var validUsageMetricsTimeRange = map[UsageMetricsTimeRange]bool{
+	UsageMetricsTimeRange1d:  true,
 	UsageMetricsTimeRange7d:  true,
 	UsageMetricsTimeRange30d: true,
 	UsageMetricsTimeRange90d: true,
@@ -25,6 +27,8 @@ var validUsageMetricsTimeRange = map[UsageMetricsTimeRange]bool{
 // Days returns the number of days the range covers.
 func (t UsageMetricsTimeRange) Days() int {
 	switch t {
+	case UsageMetricsTimeRange1d:
+		return 1
 	case UsageMetricsTimeRange7d:
 		return 7
 	case UsageMetricsTimeRange90d:
