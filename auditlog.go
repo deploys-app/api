@@ -26,6 +26,7 @@ type AuditLogItem struct {
 	ID        int64            `json:"id" yaml:"id"`
 	Resource  AuditLogResource `json:"resource" yaml:"resource"`
 	Actor     AuditLogActor    `json:"actor" yaml:"actor"`
+	Channel   AuditChannel     `json:"channel" yaml:"channel"`
 	Action    string           `json:"action" yaml:"action"`
 	Outcome   AuditOutcome     `json:"outcome" yaml:"outcome"`
 	Detail    string           `json:"detail" yaml:"detail"`
@@ -40,6 +41,7 @@ type AuditLogList struct {
 	Project      string       `json:"project" yaml:"project"`
 	ResourceType string       `json:"resourceType" yaml:"resourceType"`
 	Actor        string       `json:"actor" yaml:"actor"`
+	Channel      AuditChannel `json:"channel" yaml:"channel"`
 	Outcome      AuditOutcome `json:"outcome" yaml:"outcome"`
 	After        time.Time    `json:"after" yaml:"after"`
 	Before       time.Time    `json:"before" yaml:"before"`
