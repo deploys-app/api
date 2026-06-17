@@ -14,6 +14,10 @@ import (
 
 const endpoint = "https://api.deploys.app/"
 
+// headerChannel mirrors api.HeaderChannel at package scope because invoke()'s
+// `api` path parameter shadows the api package inside the method body.
+const headerChannel = api.HeaderChannel
+
 type Error struct {
 	Message string `json:"message"`
 }
@@ -41,6 +45,12 @@ type Client struct {
 	HTTPClient *http.Client
 	Endpoint   string
 	Auth       func(r *http.Request)
+
+	// Channel declares which client surface this request comes through. When
+	// set, it is sent as the api.HeaderChannel header and recorded on audit
+	// log entries (e.g. "console", "cli", "mcp"). Leave empty for direct API
+	// callers; the server defaults those to api.AuditChannelAPI.
+	Channel api.AuditChannel
 }
 
 func (c *Client) httpClient() *http.Client {
@@ -171,6 +181,9 @@ func (c *Client) invoke(ctx context.Context, api string, r any, res any) error {
 	req = req.WithContext(ctx)
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 	req.Header.Set("Accept", "application/json")
+	if c.Channel != "" {
+		req.Header.Set(headerChannel, string(c.Channel))
+	}
 	if c.Auth != nil {
 		c.Auth(req)
 	}
