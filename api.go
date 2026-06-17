@@ -24,4 +24,5 @@ type Interface interface {
 	AuditLog() AuditLog
 	Dropbox() Dropbox
 	GitHub() GitHub
+	Scheduler() Scheduler
 }
