@@ -17,6 +17,7 @@ var (
 	ErrSIDNotAvailable               = newError("api: sid not available")
 	ErrRoleNotFound                  = newError("api: role not found")
 	ErrRoleSIDNotAvailable           = newError("api: role sid not available")
+	ErrRolePublicBindingForbidden    = newError("api: allUsers and allAuthenticatedUsers can only be granted roles with read-only, non-sensitive permissions")
 	ErrProjectNotFound               = newError("api: project not found")
 	ErrBillingAccountNotFound        = newError("api: billing account not found")
 	ErrBillingAccountNotActive       = newError("api: billing account not active, please contact us via email to activate billing account")

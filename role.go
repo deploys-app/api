@@ -110,6 +110,42 @@ func Permissions() []string {
 	return xs
 }
 
+// IsPublicBindablePermission reports whether permission p is safe to grant to a
+// public pseudo-principal (allUsers or allAuthenticatedUsers).
+//
+// A public binding is effectively held by everyone — including unauthenticated
+// callers — so a permission may be granted publicly only when it both (a) cannot
+// change data and (b) does not expose sensitive material. That admits the read
+// actions (".get" / ".list") plus registry.pull (anonymous image pulls are a
+// legitimate use case), but excludes:
+//   - any write action (create/update/delete/deploy/bind/set/send/upload/
+//     publish/purgecache/link/unlink/…) and any wildcard ("*", "<resource>.*",
+//     which subsume writes); and
+//   - pullsecret.get, which returns the pull-secret value and would leak
+//     registry credentials to anonymous callers.
+//
+// The classification is intentionally fail-safe: a permission is public-bindable
+// only when it positively matches a known-safe action, so an unrecognized or
+// future permission defaults to NOT public-bindable. A new mutating or sensitive
+// permission therefore can never silently slip into a public binding before this
+// list is updated.
+func IsPublicBindablePermission(p string) bool {
+	switch p {
+	case "pullsecret.get":
+		// Read-only, but the response carries the secret value — never expose it
+		// to a public principal.
+		return false
+	case "registry.pull":
+		// Pulls image blobs; mutates nothing, and public pull is a legitimate
+		// use case (public registries).
+		return true
+	}
+	if p == "*" || strings.HasSuffix(p, ".*") {
+		return false
+	}
+	return strings.HasSuffix(p, ".get") || strings.HasSuffix(p, ".list")
+}
+
 type Role interface {
 	// Create requires the `role.create` permission.
 	Create(ctx context.Context, m *RoleCreate) (*Empty, error)
