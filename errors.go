@@ -26,6 +26,7 @@ var (
 	ErrCanNotDelete                  = newError("api: can not delete")
 	ErrCanNotPause                   = newError("api: can not pause")
 	ErrCanNotResume                  = newError("api: can not resume")
+	ErrCanNotRestart                 = newError("api: can not restart")
 	ErrWorkloadIdentityNotFound      = newError("api: workload identity not found")
 	ErrWorkloadIdentityAlreadyExists = newError("api: workload identity already exists")
 	ErrWorkloadIdentityInUse         = newError("api: workload identity in use")
