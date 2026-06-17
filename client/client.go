@@ -149,6 +149,10 @@ func (c *Client) GitHub() api.GitHub {
 	return githubClient{c}
 }
 
+func (c *Client) Scheduler() api.Scheduler {
+	return schedulerClient{c}
+}
+
 func (c *Client) invoke(ctx context.Context, api string, r any, res any) error {
 	if err := validRequest(r); err != nil {
 		return err

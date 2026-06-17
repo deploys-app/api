@@ -73,3 +73,24 @@ const (
 	CacheMinTTL = time.Second
 	CacheMaxTTL = 720 * time.Hour
 )
+
+// Scheduler (scheduled HTTP requests)
+const (
+	SchedulerMaxHeaders           = 50
+	SchedulerMaxHeaderKeyLength   = 256
+	SchedulerMaxHeaderValueLength = 8192
+	SchedulerMaxURLLength         = 2048
+	SchedulerMaxBodySize          = 64 * 1024 // 64 KiB
+
+	SchedulerDefaultLogLimit = 50
+	SchedulerMaxLogLimit     = 100
+
+	// SchedulerDefaultUserAgent is sent on every scheduled request unless the job
+	// overrides it via a custom "User-Agent" header. It is the value the platform
+	// WAF global baseline allowlists so scheduled requests aren't blocked.
+	SchedulerDefaultUserAgent = "deploys-scheduler/1.0"
+
+	// SchedulerRequestTimeout bounds a single outbound scheduled request so a slow
+	// target can't stall the tick. Not user-configurable in v1.
+	SchedulerRequestTimeout = 30 * time.Second
+)

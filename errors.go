@@ -77,6 +77,10 @@ var (
 	ErrGitHubBranchNotAllowed        = newError("api: github ref is not the configured production branch")
 	ErrGitHubProductionDisabled      = newError("api: github production deploys are disabled for this repository")
 	ErrGitHubPreviewsDisabled        = newError("api: github pull request previews are disabled for this repository")
+	ErrSchedulerJobNotFound          = newError("api: scheduler job not found")
+	ErrSchedulerJobAlreadyExists     = newError("api: scheduler job already exists")
+	ErrSchedulerAuthSecretRequired   = newError("api: scheduler auth secret required")
+	ErrTimezoneInvalid               = newError("api: timezone invalid")
 )
 
 var AllErrors []error

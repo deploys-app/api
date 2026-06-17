@@ -102,6 +102,13 @@ var permissions = []string{
 	"github.unlink",
 	"github.update",
 	"github.list",
+	"scheduler.*",
+	"scheduler.create",
+	"scheduler.update",
+	"scheduler.get",
+	"scheduler.list",
+	"scheduler.delete",
+	"scheduler.run",
 }
 
 func Permissions() []string {
