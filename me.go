@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"mime/multipart"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -56,7 +57,7 @@ func (m *MeGenerateToken) Valid() error {
 	v.Must(m.Project != "", "project required")
 	v.Must(len(m.Permissions) > 0, "permissions required")
 	for _, p := range m.Permissions {
-		v.Mustf(stringInSlice(p, GenerateTokenPermissions),
+		v.Mustf(slices.Contains(GenerateTokenPermissions, p),
 			"permission %q is not allowed for generated tokens (allowed: %s)", p, strings.Join(GenerateTokenPermissions, ", "))
 	}
 	v.Must(m.TTLSeconds >= 60 && m.TTLSeconds <= 3600, "ttlSeconds must be between 60 and 3600")
@@ -77,15 +78,6 @@ func (m *MeGenerateTokenResult) Table() [][]string {
 		{"TOKEN", "EXPIRES AT", "PROJECT", "PERMISSIONS"},
 		{m.Token, m.ExpiresAt.Format(time.RFC3339), m.Project, strings.Join(m.Permissions, ",")},
 	}
-}
-
-func stringInSlice(s string, xs []string) bool {
-	for _, x := range xs {
-		if x == s {
-			return true
-		}
-	}
-	return false
 }
 
 type MeItem struct {
