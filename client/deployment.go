@@ -64,6 +64,15 @@ func (c deploymentClient) Pause(ctx context.Context, m *api.DeploymentPause) (*a
 	return &res, nil
 }
 
+func (c deploymentClient) Restart(ctx context.Context, m *api.DeploymentRestart) (*api.Empty, error) {
+	var res api.Empty
+	err := c.inv.invoke(ctx, "deployment.restart", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 func (c deploymentClient) Rollback(ctx context.Context, m *api.DeploymentRollback) (*api.Empty, error) {
 	var res api.Empty
 	err := c.inv.invoke(ctx, "deployment.rollback", m, &res)

@@ -26,6 +26,8 @@ type Deployment interface {
 	Resume(ctx context.Context, m *DeploymentResume) (*Empty, error)
 	// Pause requires the `deployment.deploy` permission.
 	Pause(ctx context.Context, m *DeploymentPause) (*Empty, error)
+	// Restart requires the `deployment.deploy` permission.
+	Restart(ctx context.Context, m *DeploymentRestart) (*Empty, error)
 	// Rollback requires the `deployment.get` and `deployment.deploy` permissions.
 	Rollback(ctx context.Context, m *DeploymentRollback) (*Empty, error)
 	// Delete requires the `deployment.delete` permission.
@@ -590,6 +592,26 @@ type DeploymentPause struct {
 }
 
 func (m *DeploymentPause) Valid() error {
+	m.Name = strings.TrimSpace(m.Name)
+
+	v := validator.New()
+
+	v.Must(m.Location != "", "location required")
+	v.Must(m.Project != "", "project required")
+	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
+	// allow old spec long name
+	v.Mustf(utf8.RuneCountInString(m.Name) <= DeploymentMaxNameLength*2, "name must have length less then %d characters", DeploymentMaxNameLength*2)
+
+	return WrapValidate(v)
+}
+
+type DeploymentRestart struct {
+	Location string `json:"location" yaml:"location"`
+	Project  string `json:"project" yaml:"project"`
+	Name     string `json:"name" yaml:"name"`
+}
+
+func (m *DeploymentRestart) Valid() error {
 	m.Name = strings.TrimSpace(m.Name)
 
 	v := validator.New()
