@@ -92,8 +92,15 @@ type DomainItem struct {
 	Verification DomainVerification `json:"verification" yaml:"verification"`
 	DNSConfig    DomainDNSConfig    `json:"dnsConfig" yaml:"dnsConfig"`
 	Status       DomainStatus       `json:"status" yaml:"status"`
-	CreatedAt    time.Time          `json:"createdAt" yaml:"createdAt"`
-	CreatedBy    string             `json:"createdBy" yaml:"createdBy"`
+	// CertStatus is the TLS certificate lifecycle state (none / pendingCreate /
+	// created / pendingDelete). CertPendingSince is when the cert entered
+	// pendingCreate — set only while issuance is outstanding — so the console can
+	// show how long a cert has been issuing and warn as it nears the reclaim
+	// window. Cleared once the cert issues (created) or is torn down.
+	CertStatus       DomainCertStatus `json:"certStatus" yaml:"certStatus"`
+	CertPendingSince time.Time        `json:"certPendingSince,omitempty" yaml:"certPendingSince,omitempty"`
+	CreatedAt        time.Time        `json:"createdAt" yaml:"createdAt"`
+	CreatedBy        string           `json:"createdBy" yaml:"createdBy"`
 }
 
 type DomainVerification struct {
