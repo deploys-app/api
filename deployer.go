@@ -278,7 +278,7 @@ type DeployerSetResultItem struct {
 	DeploymentCleanup      *DeployerSetResultItemDeployment `json:"deploymentCleanup,omitempty"`
 	RouteCreate            *DeployerSetResultItemGeneral    `json:"routeCreate,omitempty"`
 	RouteDelete            *DeployerSetResultItemGeneral    `json:"routeDelete,omitempty"`
-	DomainCertCreate       *DeployerSetResultItemGeneral    `json:"domainCertCreate,omitempty"`
+	DomainCertCreate       *DeployerSetResultItemDomainCert `json:"domainCertCreate,omitempty"`
 	DomainCertDelete       *DeployerSetResultItemGeneral    `json:"domainCertDelete,omitempty"`
 	WAFSet                 *DeployerSetResultItemGeneral    `json:"wafSet,omitempty"`
 	WAFDelete              *DeployerSetResultItemGeneral    `json:"wafDelete,omitempty"`
@@ -288,6 +288,19 @@ type DeployerSetResultItem struct {
 
 type DeployerSetResultItemGeneral struct {
 	ID int64 `json:"id"`
+}
+
+// DeployerSetResultItemDomainCert is the DomainCertCreate result. Ready reports
+// whether cert-manager has actually issued the Certificate (its Ready condition
+// is True), so the apiserver only advances cert_status to Created on a cert that
+// truly exists — not merely one whose Certificate object was created.
+//
+// Ready is a pointer for rollout-compatibility: a deployer that predates this
+// field sends it absent (nil), which the apiserver treats as "advance" (the
+// historical behavior), so the gate is correct regardless of deploy order.
+type DeployerSetResultItemDomainCert struct {
+	ID    int64 `json:"id"`
+	Ready *bool `json:"ready,omitempty"`
 }
 
 type DeployerSetResultItemDeploy struct {
