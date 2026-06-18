@@ -503,6 +503,7 @@ type DeploymentItem struct {
 	EventURL           string                  `json:"eventUrl" yaml:"eventUrl"`
 	PodsURL            string                  `json:"podsUrl" yaml:"podsUrl"`
 	StatusURL          string                  `json:"statusUrl" yaml:"statusUrl"`
+	ErrorsURL          string                  `json:"errorsUrl" yaml:"errorsUrl"`
 	Address            string                  `json:"address" yaml:"address"`
 	InternalAddress    string                  `json:"internalAddress" yaml:"internalAddress"`
 	Status             Status                  `json:"status" yaml:"status"`
