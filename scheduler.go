@@ -18,11 +18,12 @@ import (
 // jobs and fires them exactly once across replicas), not tied to any deploy
 // location, so a job is addressed by (project, name) like an env group.
 //
-// Every run is recorded as an invocation (timestamp, success/failed, latency,
-// http status, error) readable via Logs, and the job carries the denormalized
-// last-run result so a list view can show the last status without a per-row
-// subquery. Jobs can be paused/resumed and triggered manually (a synchronous
-// one-off run that returns the invocation result).
+// Every run is recorded as an invocation (timestamp, pending/success/failed,
+// latency, http status, error) readable via Logs, and the job carries the
+// denormalized last-run result so a list view can show the last status without a
+// per-row subquery. Jobs can be paused/resumed and triggered manually; a manual
+// trigger records a pending invocation and runs it asynchronously (it does not
+// block on the request completing).
 //
 // Outbound requests send a default User-Agent (SchedulerDefaultUserAgent) so the
 // platform WAF can allowlist them; a job may override it via a custom
@@ -44,9 +45,11 @@ type Scheduler interface {
 	Pause(ctx context.Context, m *SchedulerPause) (*Empty, error)
 	// Resume requires the `scheduler.update` permission.
 	Resume(ctx context.Context, m *SchedulerResume) (*Empty, error)
-	// Trigger runs the job once immediately and returns the invocation result.
-	// It runs even when the job is paused and does not change the cron schedule.
-	// Requires the `scheduler.run` permission.
+	// Trigger enqueues a one-off run and returns immediately with the newly
+	// recorded pending invocation; the run completes asynchronously and the
+	// invocation (poll via Logs) resolves to success or failed. It runs even when
+	// the job is paused and does not change the cron schedule. Requires the
+	// `scheduler.run` permission.
 	Trigger(ctx context.Context, m *SchedulerTrigger) (*SchedulerInvocation, error)
 	// Logs lists a job's recent invocations, newest first. Requires the
 	// `scheduler.get` permission.
@@ -414,9 +417,21 @@ func (m *SchedulerListResult) Table() [][]string {
 	return table
 }
 
+// Invocation result states. A manually-triggered run is recorded as
+// SchedulerResultPending and runs asynchronously, resolving to
+// SchedulerResultSuccess (2xx response) or SchedulerResultFailed; cron-driven
+// runs are recorded directly as success/failed.
+const (
+	SchedulerResultPending = "pending"
+	SchedulerResultSuccess = "success"
+	SchedulerResultFailed  = "failed"
+)
+
 // SchedulerInvocation is one recorded run. HTTPStatus is 0 when no response was
-// received (connection refused, DNS failure, timeout, blocked target); Error
-// holds the reason. Result is "success" (2xx response) or "failed".
+// received (connection refused, DNS failure, timeout, blocked target) or while
+// the run is still pending; Error holds the reason. Result is "pending" (a
+// manual trigger whose run has not finished), "success" (2xx response), or
+// "failed".
 type SchedulerInvocation struct {
 	ID         string    `json:"id" yaml:"id"`
 	StartedAt  time.Time `json:"startedAt" yaml:"startedAt"`
