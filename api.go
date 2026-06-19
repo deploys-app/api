@@ -25,4 +25,5 @@ type Interface interface {
 	Dropbox() Dropbox
 	GitHub() GitHub
 	Scheduler() Scheduler
+	Notification() Notification
 }
