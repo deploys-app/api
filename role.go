@@ -109,6 +109,13 @@ var permissions = []string{
 	"scheduler.list",
 	"scheduler.delete",
 	"scheduler.run",
+	"notification.*",
+	"notification.create",
+	"notification.update",
+	"notification.get",
+	"notification.list",
+	"notification.delete",
+	"notification.test",
 }
 
 func Permissions() []string {
@@ -141,6 +148,10 @@ func IsPublicBindablePermission(p string) bool {
 	case "pullsecret.get":
 		// Read-only, but the response carries the secret value — never expose it
 		// to a public principal.
+		return false
+	case "notification.get", "notification.list":
+		// Read-only, but the response carries channel URLs (e.g. internal Discord
+		// webhooks) — never expose them to a public principal.
 		return false
 	case "registry.pull":
 		// Pulls image blobs; mutates nothing, and public pull is a legitimate

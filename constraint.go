@@ -94,3 +94,13 @@ const (
 	// target can't stall the tick. Not user-configurable in v1.
 	SchedulerRequestTimeout = 30 * time.Second
 )
+
+// Notification (change-notification channels)
+const (
+	NotificationMaxURLLength           = 2048
+	NotificationMaxSecretLength        = 1024
+	NotificationMaxSubscriptionEntries = 64
+
+	NotificationDefaultDeliveriesLimit = 50
+	NotificationMaxDeliveriesLimit     = 100
+)
