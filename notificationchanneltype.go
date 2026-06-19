@@ -9,8 +9,6 @@ const (
 	_                              NotificationChannelType = iota
 	NotificationChannelTypeWebhook                         // webhook
 	NotificationChannelTypeDiscord                         // discord
-	NotificationChannelTypeSlack                           // slack
-	NotificationChannelTypeEmail                           // email
 )
 
 func (t NotificationChannelType) MarshalJSON() ([]byte, error) {
@@ -46,8 +44,6 @@ func parseNotificationChannelType(s string) NotificationChannelType {
 	for _, x := range []NotificationChannelType{
 		NotificationChannelTypeWebhook,
 		NotificationChannelTypeDiscord,
-		NotificationChannelTypeSlack,
-		NotificationChannelTypeEmail,
 	} {
 		if x.String() == s {
 			return x
@@ -56,8 +52,7 @@ func parseNotificationChannelType(s string) NotificationChannelType {
 	return NotificationChannelType(0)
 }
 
-// Valid reports whether the channel type is deliverable. Slack and Email are
-// reserved enum slots but not yet implemented, so they are rejected.
+// Valid reports whether the channel type is a supported delivery type.
 func (t NotificationChannelType) Valid() bool {
 	switch t {
 	case NotificationChannelTypeWebhook, NotificationChannelTypeDiscord:

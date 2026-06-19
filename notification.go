@@ -29,8 +29,8 @@ import (
 // deliveries are signed with HMAC-SHA256(Secret) in an "X-Deploys-Signature:
 // sha256=<hex>" header so the receiver can authenticate them.
 //
-// Channel types v1: webhook (HTTPS POST of the JSON change payload) and discord
-// (a Discord webhook URL). slack and email are reserved but not yet deliverable.
+// Channel types: webhook (HTTPS POST of the JSON change payload) and discord
+// (a Discord webhook URL).
 type Notification interface {
 	// Create requires the `notification.create` permission.
 	Create(ctx context.Context, m *NotificationCreate) (*Empty, error)

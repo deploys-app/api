@@ -13,8 +13,6 @@ func TestNotificationChannelType(t *testing.T) {
 	}{
 		{NotificationChannelTypeWebhook, "webhook", true},
 		{NotificationChannelTypeDiscord, "discord", true},
-		{NotificationChannelTypeSlack, "slack", false}, // reserved, not deliverable
-		{NotificationChannelTypeEmail, "email", false}, // reserved, not deliverable
 	}
 	for _, tc := range cases {
 		if got := tc.ct.String(); got != tc.s {
@@ -61,7 +59,7 @@ func TestNotificationCreateValid(t *testing.T) {
 		{"missing project", func(m *NotificationCreate) { m.Project = "" }, "project required"},
 		{"bad name", func(m *NotificationCreate) { m.Name = "Bad Name" }, "name invalid"},
 		{"unknown type", func(m *NotificationCreate) { m.Config.Type = "telegram" }, "config.type"},
-		{"reserved slack type", func(m *NotificationCreate) { m.Config.Type = "slack" }, "config.type"},
+		{"unsupported slack type", func(m *NotificationCreate) { m.Config.Type = "slack" }, "config.type"},
 		{"missing url", func(m *NotificationCreate) { m.Config.URL = "" }, "config.url required"},
 		{"non-http url", func(m *NotificationCreate) { m.Config.URL = "ftp://x" }, "http or https"},
 		{"webhook missing secret", func(m *NotificationCreate) { m.Config.Secret = "" }, "secret required"},

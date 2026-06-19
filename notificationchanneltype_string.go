@@ -10,13 +10,11 @@ func _() {
 	var x [1]struct{}
 	_ = x[NotificationChannelTypeWebhook-1]
 	_ = x[NotificationChannelTypeDiscord-2]
-	_ = x[NotificationChannelTypeSlack-3]
-	_ = x[NotificationChannelTypeEmail-4]
 }
 
-const _NotificationChannelType_name = "webhookdiscordslackemail"
+const _NotificationChannelType_name = "webhookdiscord"
 
-var _NotificationChannelType_index = [...]uint8{0, 7, 14, 19, 24}
+var _NotificationChannelType_index = [...]uint8{0, 7, 14}
 
 func (i NotificationChannelType) String() string {
 	i -= 1
