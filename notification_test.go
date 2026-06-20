@@ -13,6 +13,7 @@ func TestNotificationChannelType(t *testing.T) {
 	}{
 		{NotificationChannelTypeWebhook, "webhook", true},
 		{NotificationChannelTypeDiscord, "discord", true},
+		{NotificationChannelTypePull, "pull", true},
 	}
 	for _, tc := range cases {
 		if got := tc.ct.String(); got != tc.s {
@@ -50,6 +51,22 @@ func TestNotificationCreateValid(t *testing.T) {
 	if err := disc.Valid(); err != nil {
 		t.Fatalf("a valid discord create was rejected: %v", err)
 	}
+	// pull has no delivery target: no url, no secret. A bare pull (default TTL)
+	// and one with an explicit in-range TTL must both validate.
+	pull := &NotificationCreate{
+		Project: "p", Name: "agent-1",
+		Config: NotificationConfig{Type: "pull"},
+	}
+	if err := pull.Valid(); err != nil {
+		t.Fatalf("a valid pull create was rejected: %v", err)
+	}
+	pullTTL := &NotificationCreate{
+		Project: "p", Name: "agent-2",
+		Config: NotificationConfig{Type: "pull", PullTTLSeconds: 600},
+	}
+	if err := pullTTL.Valid(); err != nil {
+		t.Fatalf("a valid pull create with TTL was rejected: %v", err)
+	}
 
 	cases := []struct {
 		name   string
@@ -64,6 +81,11 @@ func TestNotificationCreateValid(t *testing.T) {
 		{"non-http url", func(m *NotificationCreate) { m.Config.URL = "ftp://x" }, "http or https"},
 		{"webhook missing secret", func(m *NotificationCreate) { m.Config.Secret = "" }, "secret required"},
 		{"bad outcome", func(m *NotificationCreate) { m.Subscription.Outcomes = []string{"maybe"} }, "outcome"},
+		{"webhook with pull ttl", func(m *NotificationCreate) { m.Config.PullTTLSeconds = 600 }, "only valid for pull"},
+		{"pull with url", func(m *NotificationCreate) { m.Config = NotificationConfig{Type: "pull", URL: "https://x/y"} }, "url must be empty"},
+		{"pull with secret", func(m *NotificationCreate) { m.Config = NotificationConfig{Type: "pull", Secret: "shh"} }, "secret must be empty"},
+		{"pull ttl too small", func(m *NotificationCreate) { m.Config = NotificationConfig{Type: "pull", PullTTLSeconds: 30} }, "pullTtlSeconds"},
+		{"pull ttl too large", func(m *NotificationCreate) { m.Config = NotificationConfig{Type: "pull", PullTTLSeconds: 999999} }, "pullTtlSeconds"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -97,7 +119,8 @@ func TestNotificationNotPublicBindable(t *testing.T) {
 	// carve-out must keep every notification permission off public bindings.
 	for _, p := range []string{
 		"notification.get", "notification.list", "notification.create",
-		"notification.update", "notification.delete", "notification.test", "notification.*",
+		"notification.update", "notification.delete", "notification.test",
+		"notification.pull", "notification.*",
 	} {
 		if IsPublicBindablePermission(p) {
 			t.Fatalf("%s must not be public-bindable", p)
