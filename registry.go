@@ -46,6 +46,9 @@ func (m *RegistryList) Valid() error {
 
 type RegistryListItem struct {
 	Name      string    `json:"name" yaml:"name"`
+	Size      int64     `json:"size" yaml:"size"`
+	Manifests int64     `json:"manifests" yaml:"manifests"`
+	Tags      int64     `json:"tags" yaml:"tags"`
 	CreatedAt time.Time `json:"createdAt" yaml:"createdAt"`
 }
 
