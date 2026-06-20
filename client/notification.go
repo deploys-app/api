@@ -65,3 +65,11 @@ func (c notificationClient) Deliveries(ctx context.Context, m *api.NotificationD
 	}
 	return &res, nil
 }
+
+func (c notificationClient) Pull(ctx context.Context, m *api.NotificationPull) (*api.NotificationPullResult, error) {
+	var res api.NotificationPullResult
+	if err := c.inv.invoke(ctx, "notification.pull", m, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}

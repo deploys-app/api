@@ -9,6 +9,7 @@ const (
 	_                              NotificationChannelType = iota
 	NotificationChannelTypeWebhook                         // webhook
 	NotificationChannelTypeDiscord                         // discord
+	NotificationChannelTypePull                            // pull
 )
 
 func (t NotificationChannelType) MarshalJSON() ([]byte, error) {
@@ -44,6 +45,7 @@ func parseNotificationChannelType(s string) NotificationChannelType {
 	for _, x := range []NotificationChannelType{
 		NotificationChannelTypeWebhook,
 		NotificationChannelTypeDiscord,
+		NotificationChannelTypePull,
 	} {
 		if x.String() == s {
 			return x
@@ -55,7 +57,7 @@ func parseNotificationChannelType(s string) NotificationChannelType {
 // Valid reports whether the channel type is a supported delivery type.
 func (t NotificationChannelType) Valid() bool {
 	switch t {
-	case NotificationChannelTypeWebhook, NotificationChannelTypeDiscord:
+	case NotificationChannelTypeWebhook, NotificationChannelTypeDiscord, NotificationChannelTypePull:
 		return true
 	default:
 		return false

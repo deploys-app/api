@@ -116,6 +116,7 @@ var permissions = []string{
 	"notification.list",
 	"notification.delete",
 	"notification.test",
+	"notification.pull",
 }
 
 func Permissions() []string {
@@ -149,9 +150,10 @@ func IsPublicBindablePermission(p string) bool {
 		// Read-only, but the response carries the secret value — never expose it
 		// to a public principal.
 		return false
-	case "notification.get", "notification.list":
-		// Read-only, but the response carries channel URLs (e.g. internal Discord
-		// webhooks) — never expose them to a public principal.
+	case "notification.get", "notification.list", "notification.pull":
+		// notification.get/.list carry channel URLs (e.g. internal Discord
+		// webhooks) and notification.pull streams a project's change events —
+		// never expose either to a public principal.
 		return false
 	case "registry.pull":
 		// Pulls image blobs; mutates nothing, and public pull is a legitimate

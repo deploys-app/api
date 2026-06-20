@@ -103,4 +103,11 @@ const (
 
 	NotificationDefaultDeliveriesLimit = 50
 	NotificationMaxDeliveriesLimit     = 100
+
+	// Pull channels: per-channel inactivity TTL bounds (seconds; 0 = server
+	// default) and the pull batch size.
+	NotificationMinPullTTLSeconds = 60
+	NotificationMaxPullTTLSeconds = 86400 // 24h
+	NotificationDefaultPullLimit  = 100
+	NotificationMaxPullLimit      = 1000
 )

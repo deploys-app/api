@@ -29,8 +29,9 @@ import (
 // deliveries are signed with HMAC-SHA256(Secret) in an "X-Deploys-Signature:
 // sha256=<hex>" header so the receiver can authenticate them.
 //
-// Channel types: webhook (HTTPS POST of the JSON change payload) and discord
-// (a Discord webhook URL).
+// Channel types: webhook (HTTPS POST of the JSON change payload), discord (a
+// Discord webhook URL), and pull (no delivery target — a consumer fetches changes
+// with Pull on its own schedule; useful for a local agent that has no public URL).
 type Notification interface {
 	// Create requires the `notification.create` permission.
 	Create(ctx context.Context, m *NotificationCreate) (*Empty, error)
@@ -49,18 +50,27 @@ type Notification interface {
 	// Deliveries lists a channel's recent delivery attempts, newest first.
 	// Requires the `notification.get` permission.
 	Deliveries(ctx context.Context, m *NotificationDeliveries) (*NotificationDeliveriesResult, error)
+	// Pull fetches the next batch of change events for a pull channel and advances
+	// the channel's server-stored cursor (see NotificationPull). Delivery is
+	// at-least-once. Requires the `notification.pull` permission.
+	Pull(ctx context.Context, m *NotificationPull) (*NotificationPullResult, error)
 }
 
 // NotificationConfig is a channel's delivery configuration. Type is the channel
-// kind ("webhook" or "discord"); URL is the delivery target; Secret is the
-// write-only webhook signing key; InsecureSkipVerify disables TLS verification
-// for HTTPS targets (self-signed certs) — the server still blocks private/
-// link-local/metadata targets to avoid SSRF.
+// kind ("webhook", "discord", or "pull"); URL is the delivery target; Secret is
+// the write-only webhook signing key; InsecureSkipVerify disables TLS
+// verification for HTTPS targets (self-signed certs) — the server still blocks
+// private/link-local/metadata targets to avoid SSRF.
+//
+// A "pull" channel has no delivery target: URL and Secret must be empty, and
+// PullTTLSeconds sets how long the channel survives without a Pull before it is
+// auto-deleted (0 = server default). PullTTLSeconds is ignored for push channels.
 type NotificationConfig struct {
-	Type               string `json:"type" yaml:"type"`                             // webhook|discord
-	URL                string `json:"url" yaml:"url"`                               // delivery target
-	Secret             string `json:"secret,omitempty" yaml:"secret,omitempty"`     // write-only signing key
-	InsecureSkipVerify bool   `json:"insecureSkipVerify" yaml:"insecureSkipVerify"` // skip TLS verify
+	Type               string `json:"type" yaml:"type"`                                         // webhook|discord|pull
+	URL                string `json:"url" yaml:"url"`                                           // delivery target (empty for pull)
+	Secret             string `json:"secret,omitempty" yaml:"secret,omitempty"`                 // write-only signing key
+	InsecureSkipVerify bool   `json:"insecureSkipVerify" yaml:"insecureSkipVerify"`             // skip TLS verify
+	PullTTLSeconds     int    `json:"pullTtlSeconds,omitempty" yaml:"pullTtlSeconds,omitempty"` // pull only; 0 = server default
 }
 
 // NotificationSubscription filters which changes a channel receives. Each axis
@@ -98,12 +108,35 @@ func validNotificationURL(v *validator.Validator, raw string) {
 // empty secret means "keep the stored one").
 func validNotificationConfig(v *validator.Validator, cfg NotificationConfig, requireSecret bool) {
 	ct := parseNotificationChannelType(cfg.Type)
-	v.Must(ct.Valid(), "config.type must be webhook or discord")
+	v.Must(ct.Valid(), "config.type must be webhook, discord, or pull")
+
+	if ct == NotificationChannelTypePull {
+		// A pull channel is consumed via notification.pull; it has no delivery
+		// target or signing secret.
+		v.Must(cfg.URL == "", "config.url must be empty for pull")
+		v.Must(cfg.Secret == "", "config.secret must be empty for pull")
+		validNotificationPullTTL(v, cfg.PullTTLSeconds)
+		return
+	}
+
+	// Push channels (webhook/discord, and any unknown type which already failed
+	// the Valid() check above) deliver to a URL.
 	validNotificationURL(v, cfg.URL)
 	if ct == NotificationChannelTypeWebhook && requireSecret {
 		v.Must(cfg.Secret != "", "config.secret required for webhook")
 	}
 	v.Mustf(utf8.RuneCountInString(cfg.Secret) <= NotificationMaxSecretLength, "config.secret must not exceed %d characters", NotificationMaxSecretLength)
+	v.Must(cfg.PullTTLSeconds == 0, "config.pullTtlSeconds is only valid for pull channels")
+}
+
+// validNotificationPullTTL checks a pull channel's per-channel inactivity TTL.
+// 0 means "use the server default"; any other value must fall within the bounds.
+func validNotificationPullTTL(v *validator.Validator, secs int) {
+	if secs == 0 {
+		return
+	}
+	v.Mustf(secs >= NotificationMinPullTTLSeconds && secs <= NotificationMaxPullTTLSeconds,
+		"config.pullTtlSeconds must be 0 (default) or between %d and %d", NotificationMinPullTTLSeconds, NotificationMaxPullTTLSeconds)
 }
 
 func validNotificationSubscription(v *validator.Validator, s NotificationSubscription) {
@@ -238,6 +271,67 @@ func (m *NotificationDeliveries) Valid() error {
 		m.Limit = NotificationMaxDeliveriesLimit
 	}
 	return nil
+}
+
+// NotificationPull fetches the next batch of change events for a pull channel and
+// advances the channel's server-stored cursor. Pass the Cursor returned by the
+// previous call as Ack once that batch has been durably handled — the server only
+// advances past acked events, so an unacked batch is redelivered (delivery is
+// at-least-once; making progress requires acking). Each Pull also stamps the
+// channel's liveness, deferring its inactivity auto-delete.
+type NotificationPull struct {
+	Project string `json:"project" yaml:"project"`
+	Name    string `json:"name" yaml:"name"`
+	Ack     int64  `json:"ack" yaml:"ack"`     // Cursor from the previous pull, once handled; 0 = don't advance
+	Limit   int    `json:"limit" yaml:"limit"` // max events; clamped to [1, NotificationMaxPullLimit]
+}
+
+func (m *NotificationPull) Valid() error {
+	m.Name = strings.TrimSpace(m.Name)
+	v := validator.New()
+	v.Must(m.Project != "", "project required")
+	validNotificationName(v, m.Name)
+	v.Must(m.Ack >= 0, "ack must not be negative")
+	if err := WrapValidate(v); err != nil {
+		return err
+	}
+	if m.Limit <= 0 {
+		m.Limit = NotificationDefaultPullLimit
+	}
+	if m.Limit > NotificationMaxPullLimit {
+		m.Limit = NotificationMaxPullLimit
+	}
+	return nil
+}
+
+// NotificationPullResult is a batch of change events for a pull channel. Events
+// are already subscription-filtered and ordered oldest-first. Cursor is the
+// outbox position scanned by this call — pass it back as NotificationPull.Ack on
+// the next call once the events are handled. HasMore is true when the batch hit
+// Limit and more events are immediately available, so the consumer should pull
+// again before idling.
+type NotificationPullResult struct {
+	Project string               `json:"project" yaml:"project"`
+	Name    string               `json:"name" yaml:"name"`
+	Events  []ChangeEventPayload `json:"events" yaml:"events"`
+	Cursor  int64                `json:"cursor" yaml:"cursor"`
+	HasMore bool                 `json:"hasMore" yaml:"hasMore"`
+}
+
+func (m *NotificationPullResult) Table() [][]string {
+	table := [][]string{
+		{"TIME", "ACTOR", "ACTION", "RESOURCE", "OUTCOME"},
+	}
+	for _, e := range m.Events {
+		res := e.ResourceType
+		if e.ResourceName != "" {
+			res += "/" + e.ResourceName
+		}
+		table = append(table, []string{
+			age(e.Time), e.Actor, e.Action, res, e.Outcome,
+		})
+	}
+	return table
 }
 
 // NotificationItem is the read view of a channel. Config.Secret is always empty.
