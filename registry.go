@@ -93,6 +93,7 @@ func (m *RegistryGetTags) Valid() error {
 type RegistryTag struct {
 	Tag       string    `json:"tag" yaml:"tag"`
 	Digest    string    `json:"digest" yaml:"digest"`
+	Size      int64     `json:"size" yaml:"size"`
 	CreatedAt time.Time `json:"createdAt" yaml:"createdAt"`
 }
 
@@ -117,6 +118,7 @@ func (m *RegistryGetManifests) Valid() error {
 
 type RegistryManifest struct {
 	Digest    string    `json:"digest" yaml:"digest"`
+	Size      int64     `json:"size" yaml:"size"`
 	CreatedAt time.Time `json:"createdAt" yaml:"createdAt"`
 }
 
