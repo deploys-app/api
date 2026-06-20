@@ -35,7 +35,7 @@ func (m *WorkloadIdentityCreate) Valid() error {
 	v := validator.New()
 	v.Must(m.Location != "", "location required")
 	v.Must(m.Project != "", "project required")
-	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
+	v.Must(ReValidName.MatchString(m.Name), "name invalid: "+ReValidNameDesc)
 	{
 		cnt := utf8.RuneCountInString(m.Name)
 		v.Mustf(cnt >= MinNameLength && cnt <= MaxNameLength, "name must have length between %d-%d characters", MinNameLength, MaxNameLength)
@@ -58,7 +58,7 @@ func (m *WorkloadIdentityGet) Valid() error {
 	v := validator.New()
 	v.Must(m.Location != "", "location required")
 	v.Must(m.Project != "", "project required")
-	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
+	v.Must(ReValidName.MatchString(m.Name), "name invalid: "+ReValidNameDesc)
 	{
 		cnt := utf8.RuneCountInString(m.Name)
 		v.Mustf(cnt >= MinNameLength && cnt <= MaxNameLength, "name must have length between %d-%d characters", MinNameLength, MaxNameLength)
@@ -79,7 +79,7 @@ func (m *WorkloadIdentityDelete) Valid() error {
 	v := validator.New()
 	v.Must(m.Location != "", "location required")
 	v.Must(m.Project != "", "project required")
-	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
+	v.Must(ReValidName.MatchString(m.Name), "name invalid: "+ReValidNameDesc)
 	{
 		cnt := utf8.RuneCountInString(m.Name)
 		v.Mustf(cnt >= MinNameLength && cnt <= MaxNameLength, "name must have length between %d-%d characters", MinNameLength, MaxNameLength)

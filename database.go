@@ -28,7 +28,7 @@ func (m *DatabaseCreate) Valid() error {
 
 	v.Must(m.Project != "", "project required")
 	v.Must(m.Location != "", "location required")
-	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
+	v.Must(ReValidName.MatchString(m.Name), "name invalid: "+ReValidNameDesc)
 	{
 		cnt := utf8.RuneCountInString(m.Name)
 		v.Mustf(cnt >= MinNameLength && cnt <= MaxNameLength, "name must have length between %d-%d characters", MinNameLength, MaxNameLength)
@@ -76,7 +76,7 @@ func (m *DatabaseDelete) Valid() error {
 
 	v := validator.New()
 
-	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
+	v.Must(ReValidName.MatchString(m.Name), "name invalid: "+ReValidNameDesc)
 	if cnt := utf8.RuneCountInString(m.Name); cnt > MaxNameLength {
 		return fmt.Errorf("name invalid")
 	}

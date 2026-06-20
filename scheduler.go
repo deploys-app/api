@@ -98,7 +98,7 @@ var validSchedulerMethods = map[string]bool{
 
 // validSchedulerName mirrors the env-group name rules (DNS-label friendly).
 func validSchedulerName(v *validator.Validator, name string) {
-	v.Must(ReValidName.MatchString(name), "name invalid "+ReValidNameStr)
+	v.Must(ReValidName.MatchString(name), "name invalid: "+ReValidNameDesc)
 	cnt := utf8.RuneCountInString(name)
 	v.Mustf(cnt >= MinNameLength && cnt <= MaxNameLength, "name must have length between %d-%d characters", MinNameLength, MaxNameLength)
 }
