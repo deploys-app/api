@@ -188,6 +188,53 @@ func validNotificationEventSegment(s string) bool {
 	return true
 }
 
+// notificationEvents is the catalog of concrete "<resource>.<action>" events the
+// platform emits — every write that produces an audit-log entry, and therefore
+// every event a subscription can match. It mirrors Permissions(): a discovery
+// list a client can present when building a subscription, grouped by resource.
+//
+// Subscriptions are not limited to this list — a pattern may use the wildcard
+// forms IsValidNotificationEvent accepts ("*", "<resource>.*", "*.<action>"), and
+// the list is advisory (not enforced by validation) so a newly added event keeps
+// working before this catalog catches up. The resource segments mirror the audit
+// resourceType exactly (camelCase: pullSecret, serviceAccount, envGroup; note the
+// historical lowercase workloadidentity); keep in sync with the apiserver
+// recordChange/recordAudit call sites.
+var notificationEvents = []string{
+	"cache.set", "cache.delete",
+	"database.create",
+	"deployment.deploy", "deployment.rollback", "deployment.restart",
+	"deployment.pause", "deployment.resume", "deployment.delete",
+	"disk.create", "disk.update", "disk.delete",
+	"domain.create", "domain.purgeCache", "domain.delete",
+	"envGroup.create", "envGroup.update", "envGroup.delete",
+	"githubInstallation.create",
+	"githubRepo.link", "githubRepo.update", "githubRepo.unlink",
+	"notification.create", "notification.update", "notification.delete",
+	"project.create", "project.update", "project.delete",
+	"pullSecret.create", "pullSecret.delete",
+	"role.create", "role.update", "role.delete", "role.grant", "role.revoke",
+	"route.create", "route.delete",
+	"scheduler.create", "scheduler.update", "scheduler.delete",
+	"scheduler.pause", "scheduler.resume", "scheduler.trigger",
+	"serviceAccount.create", "serviceAccount.update", "serviceAccount.delete",
+	"serviceAccount.createKey", "serviceAccount.deleteKey",
+	"site.publish",
+	"waf.set", "waf.delete",
+	"workloadidentity.create", "workloadidentity.delete",
+}
+
+// NotificationEvents returns the catalog of concrete change events a notification
+// subscription can match — the discovery list for a subscription UI (see
+// notificationEvents). The returned slice is a copy. Wildcard patterns ("*",
+// "<resource>.*", "*.<action>") are also valid in a subscription but are not
+// listed here; they are formed per IsValidNotificationEvent.
+func NotificationEvents() []string {
+	xs := make([]string, len(notificationEvents))
+	copy(xs, notificationEvents)
+	return xs
+}
+
 type NotificationCreate struct {
 	Project      string                   `json:"project" yaml:"project"`
 	Name         string                   `json:"name" yaml:"name"`
