@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -34,6 +35,14 @@ type Deployment interface {
 	Delete(ctx context.Context, m *DeploymentDelete) (*Empty, error)
 	// Metrics requires the `deployment.get` permission.
 	Metrics(ctx context.Context, m *DeploymentMetrics) (*DeploymentMetricsResult, error)
+	// Logs requires the `deployment.logs` permission. It returns a bounded
+	// snapshot of recent container output (live pod logs, ephemeral — not a
+	// history store).
+	Logs(ctx context.Context, m *DeploymentLogs) (*DeploymentLogsResult, error)
+	// Status requires the `deployment.get` permission. It returns structured pod
+	// health (counts + per-pod failure reasons) without any secret-bearing log
+	// content.
+	Status(ctx context.Context, m *DeploymentStatus) (*DeploymentStatusResult, error)
 }
 
 type DeploymentType int
@@ -744,4 +753,167 @@ type DeploymentMetricsResult struct {
 type DeploymentMetricsLine struct {
 	Name   string       `json:"name" yaml:"name"`
 	Points [][2]float64 `json:"points" yaml:"points"`
+}
+
+// DeploymentLogs requests a bounded snapshot of recent container output for a
+// deployment. It reads live pod logs (ephemeral — gone once a pod is garbage
+// collected); it is not a historical log store. Each call returns once with a
+// bounded batch, never an open stream.
+type DeploymentLogs struct {
+	Project  string `json:"project" yaml:"project"`
+	Location string `json:"location" yaml:"location"`
+	Name     string `json:"name" yaml:"name"`
+	// Pod optionally restricts the read to a single pod of the deployment; empty
+	// reads all of the deployment's pods.
+	Pod string `json:"pod" yaml:"pod"`
+	// Previous reads the last-terminated (crashed) container instead of the
+	// running one — the crash post-mortem. Best-effort: k8s only retains it
+	// until the pod is garbage collected.
+	Previous bool `json:"previous" yaml:"previous"`
+	// TailLines bounds the number of lines returned per pod. 0 defaults to
+	// DeploymentLogsDefaultTailLines; otherwise it is clamped to
+	// [1, DeploymentLogsMaxTailLines].
+	TailLines int `json:"tailLines" yaml:"tailLines"`
+}
+
+func (m *DeploymentLogs) Valid() error {
+	m.Name = strings.TrimSpace(m.Name)
+	m.Pod = strings.TrimSpace(m.Pod)
+
+	switch {
+	case m.TailLines == 0:
+		m.TailLines = DeploymentLogsDefaultTailLines
+	case m.TailLines < 1:
+		m.TailLines = 1
+	case m.TailLines > DeploymentLogsMaxTailLines:
+		m.TailLines = DeploymentLogsMaxTailLines
+	}
+
+	v := validator.New()
+
+	v.Must(m.Location != "", "location required")
+	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
+	// allow old spec long name
+	v.Mustf(utf8.RuneCountInString(m.Name) <= DeploymentMaxNameLength*2, "name must have length less then %d characters", DeploymentMaxNameLength*2)
+	v.Must(m.Project != "", "project required")
+
+	return WrapValidate(v)
+}
+
+type DeploymentLogsResult struct {
+	Lines []DeploymentLogLine `json:"lines" yaml:"lines"`
+	// CappedByBytes is set when the response hit the server byte budget and the
+	// oldest lines were dropped. A single Truncated-against-tailLines flag would
+	// mis-report because k8s applies tailLines per pod, so the byte cap is the
+	// committed guarantee.
+	CappedByBytes bool `json:"cappedByBytes" yaml:"cappedByBytes"`
+}
+
+func (m *DeploymentLogsResult) Table() [][]string {
+	table := [][]string{
+		{"TIME", "POD", "LOG"},
+	}
+	for _, x := range m.Lines {
+		ts := ""
+		if !x.Timestamp.IsZero() {
+			ts = x.Timestamp.UTC().Format(time.RFC3339)
+		}
+		table = append(table, []string{ts, x.Pod, x.Log})
+	}
+	return table
+}
+
+type DeploymentLogLine struct {
+	Pod       string    `json:"pod" yaml:"pod"`
+	Timestamp time.Time `json:"timestamp" yaml:"timestamp"`
+	Log       string    `json:"log" yaml:"log"`
+}
+
+// DeploymentStatus requests structured pod health for a deployment: pod counts
+// plus per-pod failure reasons. It is authorized by the `deployment.get`
+// permission, not `deployment.logs` — status/reasons are not secret-bearing,
+// raw stdout is — so a principal can see why something is unhealthy without
+// being able to read potentially-secret log content.
+type DeploymentStatus struct {
+	Project  string `json:"project" yaml:"project"`
+	Location string `json:"location" yaml:"location"`
+	Name     string `json:"name" yaml:"name"`
+}
+
+func (m *DeploymentStatus) Valid() error {
+	m.Name = strings.TrimSpace(m.Name)
+
+	v := validator.New()
+
+	v.Must(m.Location != "", "location required")
+	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
+	// allow old spec long name
+	v.Mustf(utf8.RuneCountInString(m.Name) <= DeploymentMaxNameLength*2, "name must have length less then %d characters", DeploymentMaxNameLength*2)
+	v.Must(m.Project != "", "project required")
+
+	return WrapValidate(v)
+}
+
+type DeploymentStatusResult struct {
+	// Count/Ready/Succeeded/Failed come from the log /status tally. They and the
+	// per-pod rows are read independently of each other, so treat them as a
+	// best-effort snapshot, not a strict point-in-time invariant.
+	Count     int `json:"count" yaml:"count"`
+	Ready     int `json:"ready" yaml:"ready"`
+	Succeeded int `json:"succeeded" yaml:"succeeded"`
+	Failed    int `json:"failed" yaml:"failed"`
+	// Pods carries the non-ready pods (from log /errors) with their raw failure
+	// reasons.
+	Pods []DeploymentPodStatus `json:"pods" yaml:"pods"`
+}
+
+func (m *DeploymentStatusResult) Table() [][]string {
+	table := [][]string{
+		{"POD", "PHASE", "READY", "RESTARTS", "REASON", "EXITCODE", "MESSAGE"},
+	}
+	for _, p := range m.Pods {
+		reason := p.WaitingReason
+		if reason == "" {
+			reason = p.TerminatedReason
+		}
+		if reason == "" {
+			reason = p.LastTerminatedReason
+		}
+
+		exit := ""
+		switch {
+		case p.ExitCode != 0:
+			exit = strconv.Itoa(p.ExitCode)
+		case p.LastExitCode != 0:
+			exit = strconv.Itoa(p.LastExitCode)
+		}
+
+		table = append(table, []string{
+			p.Name,
+			p.Phase,
+			strconv.FormatBool(p.Ready),
+			strconv.Itoa(p.RestartCount),
+			reason,
+			exit,
+			p.Message,
+		})
+	}
+	return table
+}
+
+// DeploymentPodStatus mirrors the log /errors projection 1:1 — raw k8s fields,
+// no classification enum — so a new k8s waiting/terminated reason needs no
+// contract bump; consumers interpret the raw strings.
+type DeploymentPodStatus struct {
+	Name                 string `json:"name" yaml:"name"`
+	Phase                string `json:"phase" yaml:"phase"`
+	Ready                bool   `json:"ready" yaml:"ready"`
+	Container            string `json:"container" yaml:"container"`
+	RestartCount         int    `json:"restartCount" yaml:"restartCount"`
+	WaitingReason        string `json:"waitingReason" yaml:"waitingReason"`               // e.g. CrashLoopBackOff, ImagePullBackOff
+	TerminatedReason     string `json:"terminatedReason" yaml:"terminatedReason"`         // current container terminated reason
+	ExitCode             int    `json:"exitCode" yaml:"exitCode"`                         // current container terminated exit code
+	LastTerminatedReason string `json:"lastTerminatedReason" yaml:"lastTerminatedReason"` // e.g. OOMKilled, Error (survives a restart)
+	LastExitCode         int    `json:"lastExitCode" yaml:"lastExitCode"`
+	Message              string `json:"message" yaml:"message"`
 }

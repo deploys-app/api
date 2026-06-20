@@ -25,6 +25,7 @@ var permissions = []string{
 	"deployment.deploy",
 	"deployment.list",
 	"deployment.get",
+	"deployment.logs",
 	"deployment.delete",
 	"domain.*",
 	"domain.create",
