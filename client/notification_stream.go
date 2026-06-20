@@ -2,29 +2,34 @@ package client
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/deploys-app/api"
 )
 
-// ErrNotificationStreamUnsupported is returned when the endpoint answers 200 but
-// not with an event stream — the signature of a server that predates the SSE
-// route, whose arpc catch-all returns a 200 JSON "not found" for the unknown
-// path. Callers should fall back to the notification.pull RPC.
+// arpcNotFoundMessage is the message the apiserver's arpc catch-all returns for an
+// unknown action. A server without the notification.pullStream action answers with
+// it (as a 200 {ok:false,error}), which we treat as "endpoint unsupported".
+const arpcNotFoundMessage = "api: not found"
+
+// ErrNotificationStreamUnsupported is returned when the server has no
+// notification.pullStream action (its arpc catch-all answers "api: not found").
+// Callers should fall back to the notification.pull RPC.
 var ErrNotificationStreamUnsupported = errors.New("notification pull stream: endpoint not supported by server")
 
-// NotificationStreamError is returned by NotificationPullStream when the SSE
-// endpoint responds with a non-200 status before streaming starts. StatusCode
-// lets a caller distinguish, for example, a 404 from a server that predates the
-// SSE endpoint (and fall back to the notification.pull RPC) from a 403/400.
+// NotificationStreamError is returned by NotificationPullStream for a
+// protocol/transport-level failure — a non-200 response whose body is not a
+// recognizable arpc error envelope (application-level errors come back as 200
+// {ok:false,error} and are surfaced as typed api errors instead). StatusCode
+// carries the HTTP status.
 type NotificationStreamError struct {
 	StatusCode int
 	Body       string
@@ -60,26 +65,29 @@ func (e *NotificationStreamError) Error() string {
 //
 // It runs a single HTTP connection and returns nil when the server closes the
 // stream (its periodic connection cap), or an error when fn fails, the context is
-// cancelled, or the transport fails. A non-200 response is a *NotificationStreamError.
+// cancelled, or the transport fails. A pre-stream failure is returned as a typed
+// error: the same arpc errors notification.pull returns (e.g. forbidden, channel
+// not found), ErrNotificationStreamUnsupported when the server lacks the action,
+// or a *NotificationStreamError for a protocol/transport-level failure.
+//
+// The request is the same POST + JSON contract as notification.pull
+// (notification.pullStream is a normal arpc action); only the response differs —
+// an event stream instead of a single batch.
 func (c *Client) NotificationPullStream(ctx context.Context, m *api.NotificationPull, fn func(id int64, ev api.ChangeEventPayload) error) error {
 	if err := m.Valid(); err != nil {
 		return err
 	}
 
-	q := url.Values{}
-	q.Set("project", m.Project)
-	q.Set("name", m.Name)
-	if m.Ack > 0 {
-		q.Set("ack", strconv.FormatInt(m.Ack, 10))
-	}
-	if m.Limit > 0 {
-		q.Set("limit", strconv.Itoa(m.Limit))
+	var body bytes.Buffer
+	if err := json.NewEncoder(&body).Encode(m); err != nil {
+		return err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.endpoint()+"notification/pull/sse?"+q.Encode(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpoint()+"notification.pullStream", &body)
 	if err != nil {
 		return err
 	}
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 	req.Header.Set("Accept", "text/event-stream")
 	if c.Auth != nil {
 		c.Auth(req)
@@ -90,19 +98,39 @@ func (c *Client) NotificationPullStream(ctx context.Context, m *api.Notification
 		return err
 	}
 	defer resp.Body.Close()
+
+	// Success is the only event-stream response; anything else is an error to
+	// classify (an arpc {ok:false,error} envelope, or a transport/protocol status).
+	ct := resp.Header.Get("Content-Type")
+	if resp.StatusCode == http.StatusOK && strings.HasPrefix(strings.ToLower(ct), "text/event-stream") {
+		return parseNotificationSSE(resp.Body, m, fn)
+	}
+	return notificationStreamResponseError(resp)
+}
+
+// notificationStreamResponseError classifies a non-stream response. arpc encodes
+// every handler error as {ok:false,error:{message}} — at HTTP 200 for the api
+// error sentinels (OKError) and 400 for a protocol error — so we decode that
+// envelope and map the message back to a typed api error (mirroring invoke). The
+// catch-all "api: not found" means the server has no such action.
+func notificationStreamResponseError(resp *http.Response) error {
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<10))
+
+	var env struct {
+		OK    bool  `json:"ok"`
+		Error Error `json:"error"`
+	}
+	if json.Unmarshal(body, &env) == nil && !env.OK && env.Error.Message != "" {
+		if env.Error.Message == arpcNotFoundMessage {
+			return ErrNotificationStreamUnsupported
+		}
+		return env.Error.apiError()
+	}
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<10))
 		return &NotificationStreamError{StatusCode: resp.StatusCode, Body: string(body)}
 	}
-	// A 200 that isn't an event stream means the SSE route is absent and the
-	// request fell through to the arpc catch-all (a 200 JSON error). Detect it so
-	// the caller can fall back to the RPC instead of busy-looping on a body that
-	// yields no events.
-	if ct := resp.Header.Get("Content-Type"); !strings.HasPrefix(strings.ToLower(ct), "text/event-stream") {
-		return ErrNotificationStreamUnsupported
-	}
-
-	return parseNotificationSSE(resp.Body, m, fn)
+	// 200 with neither a stream nor a recognizable arpc error — treat as unsupported.
+	return ErrNotificationStreamUnsupported
 }
 
 // parseNotificationSSE reads an event stream, dispatching `change` events to fn
