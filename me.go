@@ -30,13 +30,16 @@ type Me interface {
 }
 
 // GenerateTokenPermissions is the closed set of permissions a me.generateToken
-// token may carry. It is intentionally restricted to the no-CLI upload flow
-// (host an archive in dropbox, then publish it) rather than allowing an
-// arbitrary downscope of the caller's permissions. Extend it as new agent flows
-// need it.
+// token may carry. It is intentionally restricted to the agent flows that need a
+// scoped, short-lived credential — the no-CLI upload flow (host an archive in
+// dropbox, then publish it) and the read-only observability flow (read a
+// deployment's status and logs) — rather than allowing an arbitrary downscope of
+// the caller's permissions. Extend it as new agent flows need it.
 var GenerateTokenPermissions = []string{
 	"dropbox.upload",
 	"site.publish",
+	"deployment.get",
+	"deployment.logs",
 }
 
 // MeGenerateToken requests a scoped, short-lived token. Permissions must be a

@@ -37,6 +37,17 @@ const (
 	DeploymentMaxNameLength = 63
 )
 
+// Deployment logs (deployment.logs bounded snapshot)
+const (
+	// DeploymentLogsDefaultTailLines is the per-pod line count used when the
+	// request leaves TailLines unset (token-cheap default).
+	DeploymentLogsDefaultTailLines = 200
+	// DeploymentLogsMaxTailLines clamps the per-pod line count. k8s applies
+	// TailLines per container, so a deployment with N pods can still return up
+	// to TailLines×N lines — the server's byte budget is the real cap.
+	DeploymentLogsMaxTailLines = 1000
+)
+
 // WAF
 const (
 	WAFMaxRules            = 100

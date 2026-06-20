@@ -99,3 +99,21 @@ func (c deploymentClient) Metrics(ctx context.Context, m *api.DeploymentMetrics)
 	}
 	return &res, nil
 }
+
+func (c deploymentClient) Logs(ctx context.Context, m *api.DeploymentLogs) (*api.DeploymentLogsResult, error) {
+	var res api.DeploymentLogsResult
+	err := c.inv.invoke(ctx, "deployment.logs", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c deploymentClient) Status(ctx context.Context, m *api.DeploymentStatus) (*api.DeploymentStatusResult, error) {
+	var res api.DeploymentStatusResult
+	err := c.inv.invoke(ctx, "deployment.status", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}

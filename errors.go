@@ -83,6 +83,9 @@ var (
 	ErrTimezoneInvalid                  = newError("api: timezone invalid")
 	ErrNotificationChannelNotFound      = newError("api: notification channel not found")
 	ErrNotificationChannelAlreadyExists = newError("api: notification channel already exists")
+	ErrDeploymentNoLogsForStatic        = newError("api: no logs for static deployments")
+	ErrDeploymentNoStatusForStatic      = newError("api: no pod status for static deployments")
+	ErrObservabilityUnavailable         = newError("api: observability backend temporarily unavailable")
 )
 
 var AllErrors []error
