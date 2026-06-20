@@ -29,6 +29,11 @@ import (
 // deliveries are signed with HMAC-SHA256(Secret) in an "X-Deploys-Signature:
 // sha256=<hex>" header so the receiver can authenticate them.
 //
+// A Discord webhook URL embeds a secret token (.../webhooks/{id}/{token}), so
+// the URL is treated like the Secret: Get/List return it with the token redacted,
+// and on Update an empty URL keeps the stored target (retype the full URL only to
+// change it).
+//
 // Channel types: webhook (HTTPS POST of the JSON change payload), discord (a
 // Discord webhook URL), and pull (no delivery target — a consumer fetches changes
 // with Pull on its own schedule; useful for a local agent that has no public URL).
@@ -67,7 +72,7 @@ type Notification interface {
 // auto-deleted (0 = server default). PullTTLSeconds is ignored for push channels.
 type NotificationConfig struct {
 	Type               string `json:"type" yaml:"type"`                                         // webhook|discord|pull
-	URL                string `json:"url" yaml:"url"`                                           // delivery target (empty for pull)
+	URL                string `json:"url" yaml:"url"`                                           // delivery target (empty for pull; on Update empty keeps stored; Discord token redacted in responses)
 	Secret             string `json:"secret,omitempty" yaml:"secret,omitempty"`                 // write-only signing key
 	InsecureSkipVerify bool   `json:"insecureSkipVerify" yaml:"insecureSkipVerify"`             // skip TLS verify
 	PullTTLSeconds     int    `json:"pullTtlSeconds,omitempty" yaml:"pullTtlSeconds,omitempty"` // pull only; 0 = server default
@@ -96,12 +101,14 @@ func validNotificationName(v *validator.Validator, name string) {
 	v.Mustf(cnt >= MinNameLength && cnt <= MaxNameLength, "name must have length between %d-%d characters", MinNameLength, MaxNameLength)
 }
 
-func validNotificationURL(v *validator.Validator, raw string) {
-	v.Must(raw != "", "config.url required")
-	v.Mustf(utf8.RuneCountInString(raw) <= NotificationMaxURLLength, "config.url must not exceed %d characters", NotificationMaxURLLength)
+func validNotificationURL(v *validator.Validator, raw string, required bool) {
 	if raw == "" {
+		// On Update the URL is write-optional: an empty value keeps the stored
+		// target (mirrors the Secret), so it is only required on Create.
+		v.Must(!required, "config.url required")
 		return
 	}
+	v.Mustf(utf8.RuneCountInString(raw) <= NotificationMaxURLLength, "config.url must not exceed %d characters", NotificationMaxURLLength)
 	u, err := url.Parse(raw)
 	if err != nil {
 		v.Must(false, "config.url invalid")
@@ -111,10 +118,12 @@ func validNotificationURL(v *validator.Validator, raw string) {
 	v.Must(u.Host != "", "config.url host required")
 }
 
-// validNotificationConfig validates the delivery config. requireSecret is true
-// on Create (a webhook must carry its signing secret) and false on Update (an
-// empty secret means "keep the stored one").
-func validNotificationConfig(v *validator.Validator, cfg NotificationConfig, requireSecret bool) {
+// validNotificationConfig validates the delivery config. requireSecret and
+// requireURL are true on Create and false on Update: on Update an empty signing
+// secret keeps the stored one, and an empty URL keeps the stored delivery target
+// (so the redacted Discord webhook token never has to be retyped to edit other
+// fields). Both are write-only — accepted but never returned verbatim.
+func validNotificationConfig(v *validator.Validator, cfg NotificationConfig, requireSecret, requireURL bool) {
 	ct := parseNotificationChannelType(cfg.Type)
 	v.Must(ct.Valid(), "config.type must be webhook, discord, or pull")
 
@@ -129,7 +138,7 @@ func validNotificationConfig(v *validator.Validator, cfg NotificationConfig, req
 
 	// Push channels (webhook/discord, and any unknown type which already failed
 	// the Valid() check above) deliver to a URL.
-	validNotificationURL(v, cfg.URL)
+	validNotificationURL(v, cfg.URL, requireURL)
 	if ct == NotificationChannelTypeWebhook && requireSecret {
 		v.Must(cfg.Secret != "", "config.secret required for webhook")
 	}
@@ -251,14 +260,17 @@ func (m *NotificationCreate) Valid() error {
 	v := validator.New()
 	v.Must(m.Project != "", "project required")
 	validNotificationName(v, m.Name)
-	validNotificationConfig(v, m.Config, true)
+	validNotificationConfig(v, m.Config, true, true)
 	validNotificationSubscription(v, m.Subscription)
 
 	return WrapValidate(v)
 }
 
 // NotificationUpdate replaces the whole channel configuration. Leave
-// Config.Secret empty to keep the stored secret; set it to replace it.
+// Config.Secret empty to keep the stored secret; set it to replace it. Likewise
+// leave Config.URL empty to keep the stored delivery target (set it to replace) —
+// this lets a Discord channel, whose URL is returned redacted, be edited without
+// retyping the webhook token.
 type NotificationUpdate struct {
 	Project      string                   `json:"project" yaml:"project"`
 	Name         string                   `json:"name" yaml:"name"`
@@ -275,7 +287,7 @@ func (m *NotificationUpdate) Valid() error {
 	v := validator.New()
 	v.Must(m.Project != "", "project required")
 	validNotificationName(v, m.Name)
-	validNotificationConfig(v, m.Config, false)
+	validNotificationConfig(v, m.Config, false, false)
 	validNotificationSubscription(v, m.Subscription)
 
 	return WrapValidate(v)
@@ -416,11 +428,12 @@ func (m *NotificationPullResult) Table() [][]string {
 	return table
 }
 
-// NotificationItem is the read view of a channel. Config.Secret is always empty.
+// NotificationItem is the read view of a channel. Config.Secret is always empty,
+// and a Discord Config.URL is returned with its webhook token redacted.
 type NotificationItem struct {
 	Project      string                   `json:"project" yaml:"project"`
 	Name         string                   `json:"name" yaml:"name"`
-	Config       NotificationConfig       `json:"config" yaml:"config"` // Secret is ""
+	Config       NotificationConfig       `json:"config" yaml:"config"` // Secret is ""; Discord URL token redacted
 	Subscription NotificationSubscription `json:"subscription" yaml:"subscription"`
 	Disabled     bool                     `json:"disabled" yaml:"disabled"`
 	CreatedAt    time.Time                `json:"createdAt" yaml:"createdAt"`

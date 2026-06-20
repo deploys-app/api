@@ -156,6 +156,41 @@ func TestNotificationUpdateAllowsEmptySecret(t *testing.T) {
 	}
 }
 
+func TestNotificationUpdateAllowsEmptyURL(t *testing.T) {
+	// The URL is write-only on update (an empty value keeps the stored target, so
+	// a redacted Discord webhook token need not be retyped to edit other fields).
+	discord := &NotificationUpdate{
+		Project: "p", Name: "ops-disc",
+		Config: NotificationConfig{Type: "discord"},
+	}
+	if err := discord.Valid(); err != nil {
+		t.Fatalf("discord update with empty url must be valid, got: %v", err)
+	}
+	webhook := &NotificationUpdate{
+		Project: "p", Name: "ops-hook",
+		Config: NotificationConfig{Type: "webhook"},
+	}
+	if err := webhook.Valid(); err != nil {
+		t.Fatalf("webhook update with empty url must be valid, got: %v", err)
+	}
+	// a non-empty URL is still format-checked on update
+	bad := &NotificationUpdate{
+		Project: "p", Name: "ops-disc",
+		Config: NotificationConfig{Type: "discord", URL: "ftp://nope"},
+	}
+	if err := bad.Valid(); err == nil || !strings.Contains(err.Error(), "http or https") {
+		t.Fatalf("update with a malformed url must still fail, got: %v", err)
+	}
+	// Create still requires the URL.
+	create := &NotificationCreate{
+		Project: "p", Name: "ops-disc",
+		Config: NotificationConfig{Type: "discord"},
+	}
+	if err := create.Valid(); err == nil || !strings.Contains(err.Error(), "config.url required") {
+		t.Fatalf("create without a url must fail, got: %v", err)
+	}
+}
+
 func TestNotificationNotPublicBindable(t *testing.T) {
 	// channel reads expose URLs (internal Discord hooks), so the .get/.list
 	// carve-out must keep every notification permission off public bindings.
