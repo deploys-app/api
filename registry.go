@@ -24,6 +24,10 @@ type Registry interface {
 	DeleteManifest(ctx context.Context, m *RegistryDeleteManifest) (*Empty, error)
 	// Untag requires the `registry.push` permission.
 	Untag(ctx context.Context, m *RegistryUntag) (*Empty, error)
+	// GC garbage-collects manifests in the project's repositories that no
+	// deployment references (across the current revision and all revision
+	// history), by tag or by digest. It requires the `registry.push` permission.
+	GC(ctx context.Context, m *RegistryGC) (*RegistryGCResult, error)
 	// Metrics requires the `registry.get` permission.
 	Metrics(ctx context.Context, m *RegistryMetrics) (*RegistryMetricsResult, error)
 }
@@ -179,6 +183,45 @@ func (m *RegistryUntag) Valid() error {
 	v.Must(m.Tag != "", "tag required")
 
 	return WrapValidate(v)
+}
+
+type RegistryGC struct {
+	Project string `json:"project" yaml:"project"`
+	// DryRun reports what would be removed without deleting anything. The API
+	// deletes by default (DryRun=false), consistent with registry.delete/untag.
+	DryRun bool `json:"dryRun" yaml:"dryRun"`
+}
+
+func (m *RegistryGC) Valid() error {
+	v := validator.New()
+
+	v.Must(m.Project != "", "project required")
+
+	return WrapValidate(v)
+}
+
+// RegistryGCRepository is the per-repository breakdown of a GC run.
+type RegistryGCRepository struct {
+	// Repository is the repository name without the project-namespace prefix.
+	Repository string `json:"repository" yaml:"repository"`
+	// Manifests are the digests removed (or, in dry-run, that would be removed).
+	Manifests []string `json:"manifests" yaml:"manifests"`
+	// Tags are the tag names removed because they pointed at a removed manifest.
+	Tags []string `json:"tags" yaml:"tags"`
+	// Size is the bytes reclaimable in this repository: the size of blobs that
+	// become unreferenced once the listed manifests are gone (the registry's
+	// blob GC frees them).
+	Size int64 `json:"size" yaml:"size"`
+}
+
+type RegistryGCResult struct {
+	DryRun bool `json:"dryRun" yaml:"dryRun"`
+	// RemovedManifests / RemovedTags are project-wide totals.
+	RemovedManifests int64 `json:"removedManifests" yaml:"removedManifests"`
+	RemovedTags      int64 `json:"removedTags" yaml:"removedTags"`
+	// ReclaimedSize is the project-wide total of reclaimable blob bytes.
+	ReclaimedSize int64                   `json:"reclaimedSize" yaml:"reclaimedSize"`
+	Repositories  []*RegistryGCRepository `json:"repositories" yaml:"repositories"`
 }
 
 type RegistryMetrics struct {
