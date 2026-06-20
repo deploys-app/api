@@ -9,6 +9,11 @@ const (
 	ReValidNameStr      = `^[a-z][a-z0-9\-]*[a-z0-9]$`
 	ReValidScheduleStr  = `^((((\*(/\d+)?)|(\d+((-\d+)|(/\d+))?)),?)+\s?){5}$`
 	ReValidWAFRuleIDStr = `^[a-zA-Z0-9][a-zA-Z0-9_\-]*$`
+
+	// ReValidNameDesc is a plain-English description of ReValidNameStr, shown to
+	// users in validation errors instead of the raw regexp (which most people
+	// can't read).
+	ReValidNameDesc = "use lowercase letters, numbers, and hyphens, starting with a letter and ending with a letter or number"
 )
 
 // global

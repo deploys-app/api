@@ -96,7 +96,7 @@ type NotificationSubscription struct {
 }
 
 func validNotificationName(v *validator.Validator, name string) {
-	v.Must(ReValidName.MatchString(name), "name invalid "+ReValidNameStr)
+	v.Must(ReValidName.MatchString(name), "name invalid: "+ReValidNameDesc)
 	cnt := utf8.RuneCountInString(name)
 	v.Mustf(cnt >= MinNameLength && cnt <= MaxNameLength, "name must have length between %d-%d characters", MinNameLength, MaxNameLength)
 }

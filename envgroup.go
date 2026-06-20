@@ -34,7 +34,7 @@ func (m *EnvGroupCreate) Valid() error {
 	v := validator.New()
 
 	v.Must(m.Project != "", "project required")
-	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
+	v.Must(ReValidName.MatchString(m.Name), "name invalid: "+ReValidNameDesc)
 	{
 		cnt := utf8.RuneCountInString(m.Name)
 		v.Mustf(cnt >= MinNameLength && cnt <= MaxNameLength, "name must have length between %d-%d characters", MinNameLength, MaxNameLength)
@@ -65,7 +65,7 @@ func (m *EnvGroupUpdate) Valid() error {
 	v := validator.New()
 
 	v.Must(m.Project != "", "project required")
-	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
+	v.Must(ReValidName.MatchString(m.Name), "name invalid: "+ReValidNameDesc)
 	{
 		cnt := utf8.RuneCountInString(m.Name)
 		v.Mustf(cnt >= MinNameLength && cnt <= MaxNameLength, "name must have length between %d-%d characters", MinNameLength, MaxNameLength)
@@ -87,7 +87,7 @@ func (m *EnvGroupGet) Valid() error {
 	v := validator.New()
 
 	v.Must(m.Project != "", "project required")
-	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
+	v.Must(ReValidName.MatchString(m.Name), "name invalid: "+ReValidNameDesc)
 	{
 		cnt := utf8.RuneCountInString(m.Name)
 		v.Mustf(cnt >= MinNameLength && cnt <= MaxNameLength, "name must have length between %d-%d characters", MinNameLength, MaxNameLength)
@@ -107,7 +107,7 @@ func (m *EnvGroupDelete) Valid() error {
 	v := validator.New()
 
 	v.Must(m.Project != "", "project required")
-	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
+	v.Must(ReValidName.MatchString(m.Name), "name invalid: "+ReValidNameDesc)
 	{
 		cnt := utf8.RuneCountInString(m.Name)
 		v.Mustf(cnt >= MinNameLength && cnt <= MaxNameLength, "name must have length between %d-%d characters", MinNameLength, MaxNameLength)

@@ -40,7 +40,7 @@ func (m *DiskCreate) Valid() error {
 
 	v.Must(m.Location != "", "location required")
 	v.Must(m.Project != "", "project required")
-	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
+	v.Must(ReValidName.MatchString(m.Name), "name invalid: "+ReValidNameDesc)
 	{
 		cnt := utf8.RuneCountInString(m.Name)
 		v.Mustf(cnt >= MinNameLength && cnt <= MaxNameLength, "name must have length between %d-%d characters", MinNameLength, MaxNameLength)
@@ -65,7 +65,7 @@ func (m *DiskUpdate) Valid() error {
 
 	v.Must(m.Location != "", "location required")
 	v.Must(m.Project != "", "project required")
-	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
+	v.Must(ReValidName.MatchString(m.Name), "name invalid: "+ReValidNameDesc)
 	{
 		cnt := utf8.RuneCountInString(m.Name)
 		v.Mustf(cnt >= MinNameLength && cnt <= MaxNameLength, "name must have length between %d-%d characters", MinNameLength, MaxNameLength)
@@ -162,7 +162,7 @@ func (m *DiskDelete) Valid() error {
 
 	v.Must(m.Location != "", "location required")
 	v.Must(m.Project != "", "project required")
-	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
+	v.Must(ReValidName.MatchString(m.Name), "name invalid: "+ReValidNameDesc)
 	if cnt := utf8.RuneCountInString(m.Name); cnt > MaxNameLength {
 		return fmt.Errorf("name invalid")
 	}
@@ -213,7 +213,7 @@ func (m *DiskMetrics) Valid() error {
 	v := validator.New()
 
 	v.Must(m.Location != "", "location required")
-	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
+	v.Must(ReValidName.MatchString(m.Name), "name invalid: "+ReValidNameDesc)
 	v.Mustf(utf8.RuneCountInString(m.Name) <= MaxNameLength, "name must have length less then %d characters", MaxNameLength)
 	v.Must(m.Project != "", "project required")
 	v.Must(validDiskMetricsTimeRange[m.TimeRange], "timeRange invalid")
