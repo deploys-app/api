@@ -5,6 +5,39 @@ import (
 	"testing"
 )
 
+func TestNotificationEvents(t *testing.T) {
+	events := NotificationEvents()
+	if len(events) == 0 {
+		t.Fatal("the event catalog must not be empty")
+	}
+	// NotificationEvents returns a copy — mutating it must not affect the catalog.
+	events[0] = "mutated"
+	if NotificationEvents()[0] == "mutated" {
+		t.Fatal("NotificationEvents must return a copy")
+	}
+
+	seen := map[string]bool{}
+	for _, e := range NotificationEvents() {
+		if seen[e] {
+			t.Fatalf("duplicate event %q", e)
+		}
+		seen[e] = true
+		// every catalog entry is a concrete resource.action: a valid pattern, with
+		// exactly one dot and no wildcard segment (wildcards are grammar, not events).
+		if !IsValidNotificationEvent(e) {
+			t.Fatalf("catalog event %q is not a valid event pattern", e)
+		}
+		left, right, ok := strings.Cut(e, ".")
+		if !ok || left == "" || right == "" || left == "*" || right == "*" {
+			t.Fatalf("catalog event %q must be a concrete resource.action", e)
+		}
+	}
+	// a known event a subscription would target.
+	if !seen["deployment.deploy"] || !seen["role.grant"] {
+		t.Fatal("catalog is missing expected events")
+	}
+}
+
 func TestNotificationChannelType(t *testing.T) {
 	cases := []struct {
 		ct    NotificationChannelType
@@ -67,6 +100,12 @@ func TestNotificationCreateValid(t *testing.T) {
 	if err := pullTTL.Valid(); err != nil {
 		t.Fatalf("a valid pull create with TTL was rejected: %v", err)
 	}
+	// every event-pattern form must validate.
+	withEvents := validWebhookCreate()
+	withEvents.Subscription.Events = []string{"*", "deployment.*", "*.delete", "deployment.deploy", "pull-secret.create"}
+	if err := withEvents.Valid(); err != nil {
+		t.Fatalf("valid event patterns were rejected: %v", err)
+	}
 
 	cases := []struct {
 		name   string
@@ -81,6 +120,9 @@ func TestNotificationCreateValid(t *testing.T) {
 		{"non-http url", func(m *NotificationCreate) { m.Config.URL = "ftp://x" }, "http or https"},
 		{"webhook missing secret", func(m *NotificationCreate) { m.Config.Secret = "" }, "secret required"},
 		{"bad outcome", func(m *NotificationCreate) { m.Subscription.Outcomes = []string{"maybe"} }, "outcome"},
+		{"event no dot", func(m *NotificationCreate) { m.Subscription.Events = []string{"deployment"} }, "event"},
+		{"event empty side", func(m *NotificationCreate) { m.Subscription.Events = []string{"deployment."} }, "event"},
+		{"event bad char", func(m *NotificationCreate) { m.Subscription.Events = []string{"deployment.de ploy"} }, "event"},
 		{"webhook with pull ttl", func(m *NotificationCreate) { m.Config.PullTTLSeconds = 600 }, "only valid for pull"},
 		{"pull with url", func(m *NotificationCreate) { m.Config = NotificationConfig{Type: "pull", URL: "https://x/y"} }, "url must be empty"},
 		{"pull with secret", func(m *NotificationCreate) { m.Config = NotificationConfig{Type: "pull", Secret: "shh"} }, "secret must be empty"},
