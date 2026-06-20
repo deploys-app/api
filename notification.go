@@ -17,11 +17,11 @@ import (
 // addressed by (project, name) like an env group or a scheduler job.
 //
 // Each channel carries a delivery Config (Type, URL, and a write-only signing
-// Secret) and a Subscription filter (ResourceTypes, Actions, Outcomes). A change
-// is delivered to a channel when it matches the subscription on every axis; an
-// empty axis is a wildcard, so a channel with an empty subscription receives
-// every change. Delivery is at-least-once: a receiver may see a change more than
-// once and must dedup on it.
+// Secret) and a Subscription filter (Events, Outcomes). A change is delivered to
+// a channel when it matches the subscription on every axis; an empty axis is a
+// wildcard, so a channel with an empty subscription receives every change.
+// Delivery is at-least-once: a receiver may see a change more than once and must
+// dedup on it.
 //
 // Secret is WRITE-ONLY: it is accepted on Create/Update but never returned by
 // Get/List (Config.Secret is always empty in responses). On Update, leave Secret
@@ -73,13 +73,21 @@ type NotificationConfig struct {
 	PullTTLSeconds     int    `json:"pullTtlSeconds,omitempty" yaml:"pullTtlSeconds,omitempty"` // pull only; 0 = server default
 }
 
-// NotificationSubscription filters which changes a channel receives. Each axis
-// is matched independently and an empty axis is a wildcard, so the zero value
-// subscribes to every change. Outcomes entries are "success" or "failure".
+// NotificationSubscription filters which changes a channel receives. A change is
+// delivered when it matches Events AND Outcomes; an empty axis is a wildcard, so
+// the zero value subscribes to every change.
+//
+// Events are "<resourceType>.<action>" patterns using the same grammar as IAM
+// permissions, extended with a leading "*." form. Examples:
+// "*" = every change; "deployment.*" = any action on deployments; "*.delete" =
+// a delete of any resource; "deployment.deploy" = exactly that resource+action.
+//
+// This replaces the former independent ResourceTypes/Actions axes, which could
+// only express their cross-product (never a specific resource+action pair).
+// Outcomes entries are "success" or "failure".
 type NotificationSubscription struct {
-	ResourceTypes []string `json:"resourceTypes" yaml:"resourceTypes"` // [] = all
-	Actions       []string `json:"actions" yaml:"actions"`             // [] = all
-	Outcomes      []string `json:"outcomes" yaml:"outcomes"`           // [] = all (success|failure)
+	Events   []string `json:"events" yaml:"events"`     // [] = all; "<resource>.<action>" patterns (*, r.*, *.a, r.a)
+	Outcomes []string `json:"outcomes" yaml:"outcomes"` // [] = all (success|failure)
 }
 
 func validNotificationName(v *validator.Validator, name string) {
@@ -140,17 +148,44 @@ func validNotificationPullTTL(v *validator.Validator, secs int) {
 }
 
 func validNotificationSubscription(v *validator.Validator, s NotificationSubscription) {
-	total := len(s.ResourceTypes) + len(s.Actions) + len(s.Outcomes)
+	total := len(s.Events) + len(s.Outcomes)
 	v.Mustf(total <= NotificationMaxSubscriptionEntries, "subscription must not exceed %d entries", NotificationMaxSubscriptionEntries)
 	for _, o := range s.Outcomes {
 		v.Mustf(o == "success" || o == "failure", "subscription outcome %q invalid (want success or failure)", o)
 	}
-	for _, x := range s.ResourceTypes {
-		v.Mustf(x != "" && utf8.RuneCountInString(x) <= 64, "subscription resourceType %q invalid", x)
+	for _, e := range s.Events {
+		v.Mustf(utf8.RuneCountInString(e) <= 64 && IsValidNotificationEvent(e),
+			"subscription event %q invalid (want *, resource.*, *.action, or resource.action)", e)
 	}
-	for _, x := range s.Actions {
-		v.Mustf(x != "" && utf8.RuneCountInString(x) <= 64, "subscription action %q invalid", x)
+}
+
+// IsValidNotificationEvent reports whether e is a well-formed event pattern: the
+// bare wildcard "*", or "<left>.<right>" where each side is "*" or a token of
+// letters/digits/-/_ (resource types use hyphens, actions are camelCase). It is
+// exported so servers can reuse the exact grammar the client validates against.
+func IsValidNotificationEvent(e string) bool {
+	if e == "*" {
+		return true
 	}
+	left, right, ok := strings.Cut(e, ".")
+	return ok && validNotificationEventSegment(left) && validNotificationEventSegment(right)
+}
+
+func validNotificationEventSegment(s string) bool {
+	if s == "*" {
+		return true
+	}
+	if s == "" {
+		return false
+	}
+	for _, c := range s {
+		switch {
+		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9', c == '-', c == '_':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 type NotificationCreate struct {

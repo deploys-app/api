@@ -67,6 +67,12 @@ func TestNotificationCreateValid(t *testing.T) {
 	if err := pullTTL.Valid(); err != nil {
 		t.Fatalf("a valid pull create with TTL was rejected: %v", err)
 	}
+	// every event-pattern form must validate.
+	withEvents := validWebhookCreate()
+	withEvents.Subscription.Events = []string{"*", "deployment.*", "*.delete", "deployment.deploy", "pull-secret.create"}
+	if err := withEvents.Valid(); err != nil {
+		t.Fatalf("valid event patterns were rejected: %v", err)
+	}
 
 	cases := []struct {
 		name   string
@@ -81,6 +87,9 @@ func TestNotificationCreateValid(t *testing.T) {
 		{"non-http url", func(m *NotificationCreate) { m.Config.URL = "ftp://x" }, "http or https"},
 		{"webhook missing secret", func(m *NotificationCreate) { m.Config.Secret = "" }, "secret required"},
 		{"bad outcome", func(m *NotificationCreate) { m.Subscription.Outcomes = []string{"maybe"} }, "outcome"},
+		{"event no dot", func(m *NotificationCreate) { m.Subscription.Events = []string{"deployment"} }, "event"},
+		{"event empty side", func(m *NotificationCreate) { m.Subscription.Events = []string{"deployment."} }, "event"},
+		{"event bad char", func(m *NotificationCreate) { m.Subscription.Events = []string{"deployment.de ploy"} }, "event"},
 		{"webhook with pull ttl", func(m *NotificationCreate) { m.Config.PullTTLSeconds = 600 }, "only valid for pull"},
 		{"pull with url", func(m *NotificationCreate) { m.Config = NotificationConfig{Type: "pull", URL: "https://x/y"} }, "url must be empty"},
 		{"pull with secret", func(m *NotificationCreate) { m.Config = NotificationConfig{Type: "pull", Secret: "shh"} }, "secret must be empty"},
