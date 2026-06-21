@@ -841,9 +841,10 @@ type DeploymentLogLine struct {
 // DeploymentLogs (live, ephemeral, current pods) these are read from object
 // storage and survive pod restart/redeploy/GC for the retention window
 // (DeploymentLogsHistoryRetentionDays). The data lags live output by the
-// capture flush interval and is best-effort. Use Cursor to page forward
-// (oldest-first): ordering is exact within a page and approximately
-// chronological across pages, bounded by the capture flush window.
+// capture flush interval and is best-effort. Use Cursor to page (oldest-first
+// by default, or newest-first with Reverse): ordering is exact within a page
+// and approximately chronological across pages, bounded by the capture flush
+// window.
 type DeploymentLogsHistory struct {
 	Project  string `json:"project" yaml:"project"`
 	Location string `json:"location" yaml:"location"`
@@ -860,9 +861,16 @@ type DeploymentLogsHistory struct {
 	// DeploymentLogsHistoryDefaultLimit; otherwise it is clamped to
 	// [1, DeploymentLogsHistoryMaxLimit].
 	Limit int `json:"limit" yaml:"limit"`
-	// Cursor pages forward through the window; empty starts at Since. It is an
-	// opaque server token — pass back the previous response's NextCursor.
+	// Cursor pages through the window; empty starts at the first page (the
+	// oldest line for forward, the newest for Reverse). It is an opaque,
+	// direction-specific server token — pass back the previous response's
+	// NextCursor and keep Reverse stable across the sequence.
 	Cursor string `json:"cursor" yaml:"cursor"`
+	// Reverse returns lines newest-first and pages backward into the past,
+	// instead of the default oldest-first forward paging. Use it to show the
+	// most recent history first — e.g. backfilling a log view before attaching
+	// the live tail.
+	Reverse bool `json:"reverse" yaml:"reverse"`
 }
 
 func (m *DeploymentLogsHistory) Valid() error {
