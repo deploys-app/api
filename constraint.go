@@ -65,12 +65,23 @@ const (
 	DeploymentLogsHistoryRetentionDays = 30
 )
 
-// Deployment error detection (deployment.errors)
+// Application error detection / reporting (the error.* resource)
 const (
-	// DeploymentErrorsDefaultLimit is the issue page size used when Limit is unset.
-	DeploymentErrorsDefaultLimit = 50
-	// DeploymentErrorsMaxLimit clamps the issue page size.
-	DeploymentErrorsMaxLimit = 200
+	// ErrorListDefaultLimit is the issue page size used when Limit is unset.
+	ErrorListDefaultLimit = 50
+	// ErrorListMaxLimit clamps the issue page size.
+	ErrorListMaxLimit = 200
+
+	// ErrorCreateMaxEvents bounds the number of reported errors per error.create
+	// call (batch to amortise the round-trip).
+	ErrorCreateMaxEvents = 100
+	// ErrorReportMaxFrames bounds the stack frames carried by one reported error.
+	ErrorReportMaxFrames = 100
+	// ErrorReportMaxTypeLength bounds the reported exception type string.
+	ErrorReportMaxTypeLength = 1024
+	// ErrorSampleMaxBytes caps the stored sample stack-trace text (matches the
+	// capture-side cap); a longer Sample is truncated server-side.
+	ErrorSampleMaxBytes = 16 * 1024
 )
 
 // WAF

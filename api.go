@@ -7,6 +7,7 @@ type Interface interface {
 	Project() Project
 	Role() Role
 	Deployment() Deployment
+	Errors() Errors
 	Domain() Domain
 	Route() Route
 	WAF() WAF
