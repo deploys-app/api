@@ -282,6 +282,22 @@ type InvoiceItem struct {
 	CreatedAt        time.Time `json:"createdAt" yaml:"createdAt"`
 
 	LineItems []*InvoiceLineItem `json:"lineItems" yaml:"lineItems"`
+
+	// Payment is how a customer settles this invoice — the seller's bank-transfer
+	// and PromptPay details. These are static seller facts (identical on every
+	// invoice), surfaced here so a client can show "how to pay" without rendering
+	// the PDF. The server is the single source of truth.
+	Payment InvoicePayment `json:"payment" yaml:"payment"`
+}
+
+// InvoicePayment is the seller's settlement details shown on an invoice: where
+// to send a bank transfer and the PromptPay handle. It is static company info,
+// not per-invoice data, so the same values appear on every invoice.
+type InvoicePayment struct {
+	Bank        string `json:"bank" yaml:"bank"`
+	AccountName string `json:"accountName" yaml:"accountName"`
+	AccountNo   string `json:"accountNo" yaml:"accountNo"`
+	PromptPay   string `json:"promptPay" yaml:"promptPay"`
 }
 
 // InvoiceDownloadResult points at a rendered PDF copy of an invoice. The PDF
