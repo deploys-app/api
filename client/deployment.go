@@ -126,3 +126,30 @@ func (c deploymentClient) LogsHistory(ctx context.Context, m *api.DeploymentLogs
 	}
 	return &res, nil
 }
+
+func (c deploymentClient) Errors(ctx context.Context, m *api.DeploymentErrors) (*api.DeploymentErrorsResult, error) {
+	var res api.DeploymentErrorsResult
+	err := c.inv.invoke(ctx, "deployment.errors", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c deploymentClient) ErrorGet(ctx context.Context, m *api.DeploymentErrorGet) (*api.DeploymentErrorGetResult, error) {
+	var res api.DeploymentErrorGetResult
+	err := c.inv.invoke(ctx, "deployment.errorGet", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c deploymentClient) ErrorUpdate(ctx context.Context, m *api.DeploymentErrorUpdate) (*api.Empty, error) {
+	var res api.Empty
+	err := c.inv.invoke(ctx, "deployment.errorUpdate", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
