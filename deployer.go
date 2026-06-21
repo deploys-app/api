@@ -130,6 +130,12 @@ type DeployerCommandDeploymentDeploySpec struct {
 	Sidecars             []*Sidecar              `json:"sidecars"`
 	HealthCheck          DeploymentHealthCheck   `json:"healthCheck"`
 	Access               *DeploymentAccessConfig `json:"access"`
+	// RetainedSiteRefs is the set of release-shas (Static only) the deployment
+	// should expose as immutable per-release URLs — exactly its retained
+	// deployment_histories shas (≤ the bounded retention N). The deployer
+	// reconciles one release-pinned Ingress per sha on every deploy and prunes
+	// any whose sha is no longer retained. Empty/nil for non-Static.
+	RetainedSiteRefs []string `json:"retainedSiteRefs"`
 }
 
 type DeploymentHealthCheck struct {

@@ -52,6 +52,11 @@ type Deployment interface {
 	LogsHistory(ctx context.Context, m *DeploymentLogsHistory) (*DeploymentLogsHistoryResult, error)
 	// Application error issues moved to the Error resource (error.list /
 	// error.get / error.update / error.create).
+	// ExtendTTL requires the `deployment.deploy` permission. It re-stamps a
+	// deployment's auto-delete window so expires_at = now + TTL, without rolling
+	// a new revision — the "keep my preview alive while I work" primitive for
+	// ephemeral previews.
+	ExtendTTL(ctx context.Context, m *DeploymentExtendTTL) (*Empty, error)
 }
 
 type DeploymentType int
@@ -530,7 +535,9 @@ type DeploymentItem struct {
 	CreatedAt          time.Time               `json:"createdAt" yaml:"createdAt"`
 	CreatedBy          string                  `json:"createdBy" yaml:"createdBy"`
 	SuccessAt          time.Time               `json:"successAt" yaml:"successAt"`
-	TTL                int64                   `json:"ttl" yaml:"ttl"` // seconds until auto-delete; 0 means no TTL
+	TTL                int64                   `json:"ttl" yaml:"ttl"`                                   // seconds until auto-delete; 0 means no TTL
+	ExpiresAt          time.Time               `json:"expiresAt" yaml:"expiresAt"`                       // wall-clock auto-delete time (created_at + ttl); zero when no TTL
+	ReleaseURL         string                  `json:"releaseUrl,omitempty" yaml:"releaseUrl,omitempty"` // immutable per-release URL; Static only, empty otherwise
 }
 
 type DeploymentGet struct {
@@ -640,6 +647,33 @@ func (m *DeploymentRestart) Valid() error {
 	v.Must(ReValidName.MatchString(m.Name), "name invalid: "+ReValidNameDesc)
 	// allow old spec long name
 	v.Mustf(utf8.RuneCountInString(m.Name) <= DeploymentMaxNameLength*2, "name must have length less then %d characters", DeploymentMaxNameLength*2)
+
+	return WrapValidate(v)
+}
+
+// DeploymentExtendTTL re-stamps a deployment's auto-delete window so that
+// expires_at = now + TTL, without rolling a new revision. It is the keep-alive
+// primitive for ephemeral previews during a long agent session (a redeploy is
+// the natural keep-alive; this is the no-redeploy touch). Authorized as
+// `deployment.deploy`.
+type DeploymentExtendTTL struct {
+	Location string `json:"location" yaml:"location"`
+	Project  string `json:"project" yaml:"project"`
+	Name     string `json:"name" yaml:"name"`
+	TTL      int64  `json:"ttl" yaml:"ttl"` // seconds from now until auto-delete; must be > 0
+}
+
+func (m *DeploymentExtendTTL) Valid() error {
+	m.Name = strings.TrimSpace(m.Name)
+
+	v := validator.New()
+
+	v.Must(m.Location != "", "location required")
+	v.Must(m.Project != "", "project required")
+	v.Must(ReValidName.MatchString(m.Name), "name invalid: "+ReValidNameDesc)
+	// allow old spec long name
+	v.Mustf(utf8.RuneCountInString(m.Name) <= DeploymentMaxNameLength*2, "name must have length less then %d characters", DeploymentMaxNameLength*2)
+	v.Must(m.TTL > 0, "ttl must be positive")
 
 	return WrapValidate(v)
 }

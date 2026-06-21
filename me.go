@@ -33,15 +33,19 @@ type Me interface {
 // token may carry. It is intentionally restricted to the agent flows that need a
 // scoped, short-lived credential — the no-CLI upload flow (host an archive in
 // dropbox, then publish it), the read-only observability flow (read a
-// deployment's status and logs), and direct error reporting (an app reports its
-// own errors via error.create, optionally reading them back) — rather than
-// allowing an arbitrary downscope of the caller's permissions. Extend it as new
-// agent flows need it.
+// deployment's status and logs), direct error reporting (an app reports its own
+// errors via error.create, optionally reading them back), and the
+// ephemeral-preview flow (publish a site and deploy it as a TTL'd preview) —
+// rather than allowing an arbitrary downscope of the caller's permissions.
+// Extend it as new agent flows need it.
+//
+// deployment.deploy also authorizes deployment.extendTTL (preview keep-alive).
 var GenerateTokenPermissions = []string{
 	"dropbox.upload",
 	"site.publish",
 	"deployment.get",
 	"deployment.logs",
+	"deployment.deploy",
 	"error.create",
 	"error.list",
 	"error.get",
