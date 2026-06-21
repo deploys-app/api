@@ -43,6 +43,13 @@ type Deployment interface {
 	// health (counts + per-pod failure reasons) without any secret-bearing log
 	// content.
 	Status(ctx context.Context, m *DeploymentStatus) (*DeploymentStatusResult, error)
+	// LogsHistory requires the `deployment.logs` permission. It returns a
+	// bounded, paginated slice of DURABLE stored container logs over a
+	// [Since, Until] window — surviving pod restart, redeploy, and garbage
+	// collection — read from object storage rather than live pods. Unlike Logs
+	// (live, ephemeral, current pods) it serves history; it lags live output by
+	// the capture flush interval and is best-effort. Page forward with Cursor.
+	LogsHistory(ctx context.Context, m *DeploymentLogsHistory) (*DeploymentLogsHistoryResult, error)
 }
 
 type DeploymentType int
@@ -827,6 +834,86 @@ type DeploymentLogLine struct {
 	Pod       string    `json:"pod" yaml:"pod"`
 	Timestamp time.Time `json:"timestamp" yaml:"timestamp"`
 	Log       string    `json:"log" yaml:"log"`
+}
+
+// DeploymentLogsHistory requests a bounded, paginated slice of DURABLE stored
+// container logs for a deployment over a [Since, Until] window. Unlike
+// DeploymentLogs (live, ephemeral, current pods) these are read from object
+// storage and survive pod restart/redeploy/GC for the retention window
+// (DeploymentLogsHistoryRetentionDays). The data lags live output by the
+// capture flush interval and is best-effort. Use Cursor to page forward
+// (oldest-first): ordering is exact within a page and approximately
+// chronological across pages, bounded by the capture flush window.
+type DeploymentLogsHistory struct {
+	Project  string `json:"project" yaml:"project"`
+	Location string `json:"location" yaml:"location"`
+	Name     string `json:"name" yaml:"name"`
+	// Pod optionally restricts the read to a single pod of the deployment; empty
+	// reads all of the deployment's pods.
+	Pod string `json:"pod" yaml:"pod"`
+	// Since is the inclusive start of the window (required).
+	Since time.Time `json:"since" yaml:"since"`
+	// Until is the exclusive end of the window; zero is resolved to now by the
+	// server.
+	Until time.Time `json:"until" yaml:"until"`
+	// Limit bounds the number of lines returned in this page. 0 defaults to
+	// DeploymentLogsHistoryDefaultLimit; otherwise it is clamped to
+	// [1, DeploymentLogsHistoryMaxLimit].
+	Limit int `json:"limit" yaml:"limit"`
+	// Cursor pages forward through the window; empty starts at Since. It is an
+	// opaque server token — pass back the previous response's NextCursor.
+	Cursor string `json:"cursor" yaml:"cursor"`
+}
+
+func (m *DeploymentLogsHistory) Valid() error {
+	m.Name = strings.TrimSpace(m.Name)
+	m.Pod = strings.TrimSpace(m.Pod)
+	m.Cursor = strings.TrimSpace(m.Cursor)
+
+	switch {
+	case m.Limit == 0:
+		m.Limit = DeploymentLogsHistoryDefaultLimit
+	case m.Limit < 1:
+		m.Limit = 1
+	case m.Limit > DeploymentLogsHistoryMaxLimit:
+		m.Limit = DeploymentLogsHistoryMaxLimit
+	}
+
+	v := validator.New()
+
+	v.Must(m.Location != "", "location required")
+	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
+	// allow old spec long name
+	v.Mustf(utf8.RuneCountInString(m.Name) <= DeploymentMaxNameLength*2, "name must have length less then %d characters", DeploymentMaxNameLength*2)
+	v.Must(m.Project != "", "project required")
+	v.Must(!m.Since.IsZero(), "since required")
+	v.Must(m.Until.IsZero() || m.Until.After(m.Since), "until must be after since")
+
+	return WrapValidate(v)
+}
+
+type DeploymentLogsHistoryResult struct {
+	Lines []DeploymentLogLine `json:"lines" yaml:"lines"`
+	// NextCursor is non-empty when more lines remain in the window; pass it back
+	// as Cursor to fetch the next page. Empty means the window is exhausted.
+	NextCursor string `json:"nextCursor" yaml:"nextCursor"`
+	// CappedByBytes is set when this page hit the server byte budget before
+	// reaching Limit (NextCursor is still set so the caller can continue).
+	CappedByBytes bool `json:"cappedByBytes" yaml:"cappedByBytes"`
+}
+
+func (m *DeploymentLogsHistoryResult) Table() [][]string {
+	table := [][]string{
+		{"TIME", "POD", "LOG"},
+	}
+	for _, x := range m.Lines {
+		ts := ""
+		if !x.Timestamp.IsZero() {
+			ts = x.Timestamp.UTC().Format(time.RFC3339)
+		}
+		table = append(table, []string{ts, x.Pod, x.Log})
+	}
+	return table
 }
 
 // DeploymentStatus requests structured pod health for a deployment: pod counts

@@ -117,3 +117,12 @@ func (c deploymentClient) Status(ctx context.Context, m *api.DeploymentStatus) (
 	}
 	return &res, nil
 }
+
+func (c deploymentClient) LogsHistory(ctx context.Context, m *api.DeploymentLogsHistory) (*api.DeploymentLogsHistoryResult, error) {
+	var res api.DeploymentLogsHistoryResult
+	err := c.inv.invoke(ctx, "deployment.logsHistory", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}

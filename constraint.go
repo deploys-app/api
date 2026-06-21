@@ -53,6 +53,18 @@ const (
 	DeploymentLogsMaxTailLines = 1000
 )
 
+// Deployment logs history (deployment.logsHistory durable retrieval)
+const (
+	// DeploymentLogsHistoryDefaultLimit is the page size used when Limit is unset.
+	DeploymentLogsHistoryDefaultLimit = 200
+	// DeploymentLogsHistoryMaxLimit clamps the page size; the server byte budget
+	// is the real per-page cap, and NextCursor pages through the rest.
+	DeploymentLogsHistoryMaxLimit = 1000
+	// DeploymentLogsHistoryRetentionDays is how long durable logs are kept before
+	// the object-store lifecycle rule deletes them.
+	DeploymentLogsHistoryRetentionDays = 30
+)
+
 // WAF
 const (
 	WAFMaxRules            = 100
