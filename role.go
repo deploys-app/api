@@ -86,6 +86,11 @@ var permissions = []string{
 	"envgroup.list",
 	"envgroup.get",
 	"envgroup.delete",
+	"error.*",
+	"error.create",
+	"error.list",
+	"error.get",
+	"error.update",
 	"waf.*",
 	"waf.get",
 	"waf.list",
@@ -155,6 +160,11 @@ func IsPublicBindablePermission(p string) bool {
 		// notification.get/.list carry channel URLs (e.g. internal Discord
 		// webhooks) and notification.pull streams a project's change events —
 		// never expose either to a public principal.
+		return false
+	case "error.get", "error.list":
+		// Issue titles and sample stack traces can echo application data and
+		// internal detail — never expose error listings to a public principal,
+		// even though they are read-only.
 		return false
 	case "registry.pull":
 		// Pulls image blobs; mutates nothing, and public pull is a legitimate

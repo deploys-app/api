@@ -95,6 +95,10 @@ func (c *Client) Deployment() api.Deployment {
 	return deploymentClient{c}
 }
 
+func (c *Client) Errors() api.Errors {
+	return errorClient{c}
+}
+
 func (c *Client) Domain() api.Domain {
 	return domainClient{c}
 }

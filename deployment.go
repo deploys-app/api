@@ -50,20 +50,8 @@ type Deployment interface {
 	// (live, ephemeral, current pods) it serves history; it lags live output by
 	// the capture flush interval and is best-effort. Page forward with Cursor.
 	LogsHistory(ctx context.Context, m *DeploymentLogsHistory) (*DeploymentLogsHistoryResult, error)
-	// Errors requires the `deployment.logs` permission. It lists detected
-	// application error issues — grouped, deduplicated stack traces mined from
-	// the durable log stream — filtered by triage Status and paged with Cursor.
-	// Scope by Name (one deployment) or omit Name to list every deployment's
-	// issues across the project (a project-wide errors view); each issue carries
-	// its Deployment + Location. History-backed and best-effort, like LogsHistory.
-	Errors(ctx context.Context, m *DeploymentErrors) (*DeploymentErrorsResult, error)
-	// ErrorGet requires the `deployment.logs` permission. It returns one error
-	// issue with its representative stack trace and recent occurrence pointers
-	// (for deep-linking back into LogsHistory).
-	ErrorGet(ctx context.Context, m *DeploymentErrorGet) (*DeploymentErrorGetResult, error)
-	// ErrorUpdate requires the `deployment.logs` permission. It changes an error
-	// issue's triage status: resolve, reopen, or mute.
-	ErrorUpdate(ctx context.Context, m *DeploymentErrorUpdate) (*Empty, error)
+	// Application error issues moved to the Error resource (error.list /
+	// error.get / error.update / error.create).
 }
 
 type DeploymentType int
