@@ -31,7 +31,7 @@ const DefaultDropboxEndpoint = "https://dropbox.deploys.app/"
 
 // DropboxUploadOptions configures Client.DropboxUpload.
 type DropboxUploadOptions struct {
-	Project  string // project id the upload is authorized and billed against (requires the dropbox.upload permission)
+	Project  string // project sid the upload is authorized and billed against (requires the dropbox.upload permission)
 	Content  []byte // the file bytes to upload
 	Filename string // optional filename recorded in Content-Disposition, e.g. "site.tar.gz"
 	TTLDays  int    // download lifetime in days, 1-7; out-of-range or 0 defaults to 1 (server-side)
@@ -76,7 +76,11 @@ func (c *Client) DropboxUpload(ctx context.Context, opts *DropboxUploadOptions) 
 	}
 
 	q := url.Values{}
-	q.Set("projectId", opts.Project)
+	// Send the identifier as `project` (the project sid). The dropbox
+	// service's `projectId` param is strictly the numeric project ID, which
+	// the api's me.authorized rejects when handed a non-numeric sid — and a
+	// sid is what every caller (CLI, MCP, this client) actually passes.
+	q.Set("project", opts.Project)
 	if opts.TTLDays >= 1 && opts.TTLDays <= 7 {
 		q.Set("ttl", strconv.Itoa(opts.TTLDays))
 	}
