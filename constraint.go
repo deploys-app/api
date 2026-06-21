@@ -65,6 +65,14 @@ const (
 	DeploymentLogsHistoryRetentionDays = 30
 )
 
+// Deployment error detection (deployment.errors)
+const (
+	// DeploymentErrorsDefaultLimit is the issue page size used when Limit is unset.
+	DeploymentErrorsDefaultLimit = 50
+	// DeploymentErrorsMaxLimit clamps the issue page size.
+	DeploymentErrorsMaxLimit = 200
+)
+
 // WAF
 const (
 	WAFMaxRules            = 100

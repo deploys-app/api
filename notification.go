@@ -214,7 +214,7 @@ var notificationEvents = []string{
 	"database.create",
 	"deployment.deploy", "deployment.rollback", "deployment.restart",
 	"deployment.pause", "deployment.resume", "deployment.delete",
-	"deployment.health",
+	"deployment.health", "deployment.error",
 	"disk.create", "disk.update", "disk.delete",
 	"domain.create", "domain.purgeCache", "domain.delete",
 	"envGroup.create", "envGroup.update", "envGroup.delete",
