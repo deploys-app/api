@@ -86,6 +86,7 @@ var (
 	ErrDeploymentNoLogsForStatic        = newError("api: no logs for static deployments")
 	ErrDeploymentNoStatusForStatic      = newError("api: no pod status for static deployments")
 	ErrObservabilityUnavailable         = newError("api: observability backend temporarily unavailable")
+	ErrDeploymentLogHistoryUnavailable  = newError("api: log history is not available for this location")
 )
 
 var AllErrors []error
