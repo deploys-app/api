@@ -53,8 +53,9 @@ type Deployment interface {
 	// Errors requires the `deployment.logs` permission. It lists detected
 	// application error issues — grouped, deduplicated stack traces mined from
 	// the durable log stream — filtered by triage Status and paged with Cursor.
-	// Like LogsHistory it is history-backed and best-effort, available only where
-	// log capture is enabled for the location.
+	// Scope by Name (one deployment) or omit Name to list every deployment's
+	// issues across the project (a project-wide errors view); each issue carries
+	// its Deployment + Location. History-backed and best-effort, like LogsHistory.
 	Errors(ctx context.Context, m *DeploymentErrors) (*DeploymentErrorsResult, error)
 	// ErrorGet requires the `deployment.logs` permission. It returns one error
 	// issue with its representative stack trace and recent occurrence pointers
