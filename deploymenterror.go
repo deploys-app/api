@@ -41,12 +41,17 @@ const (
 	DeploymentErrorKindGeneric = "generic"
 )
 
-// DeploymentErrors lists detected application error issues for a deployment —
-// stack traces mined from the durable log stream, grouped and deduplicated by a
-// stable fingerprint. History-backed and best-effort, like DeploymentLogsHistory;
-// available only where log capture is enabled for the location.
+// DeploymentErrors lists detected application error issues — stack traces mined
+// from the durable log stream, grouped and deduplicated by a stable fingerprint.
+// Scope to one deployment with Location+Name, or omit Name to list every
+// deployment's issues across the project (a project-wide errors view).
+// History-backed and best-effort, like DeploymentLogsHistory.
 type DeploymentErrors struct {
-	Project  string `json:"project" yaml:"project"`
+	Project string `json:"project" yaml:"project"`
+	// Location and Name scope the listing to one deployment. Omit Name to list
+	// issues across every deployment in the project; Location is then optional
+	// and, if set, narrows to that location. When Name is set, Location is
+	// required.
 	Location string `json:"location" yaml:"location"`
 	Name     string `json:"name" yaml:"name"`
 	// Status filters by triage status: "open" (default), "resolved", "muted", or
@@ -65,6 +70,7 @@ type DeploymentErrors struct {
 
 func (m *DeploymentErrors) Valid() error {
 	m.Name = strings.TrimSpace(m.Name)
+	m.Location = strings.TrimSpace(m.Location)
 	m.Status = strings.TrimSpace(m.Status)
 	m.Cursor = strings.TrimSpace(m.Cursor)
 	m.Sort = strings.TrimSpace(m.Sort)
@@ -80,11 +86,15 @@ func (m *DeploymentErrors) Valid() error {
 
 	v := validator.New()
 
-	v.Must(m.Location != "", "location required")
-	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
-	// allow old spec long name
-	v.Mustf(utf8.RuneCountInString(m.Name) <= DeploymentMaxNameLength*2, "name must have length less then %d characters", DeploymentMaxNameLength*2)
 	v.Must(m.Project != "", "project required")
+	// Name scopes to one deployment (then Location is required); omitting Name
+	// lists the whole project, with Location an optional location filter.
+	if m.Name != "" {
+		v.Must(m.Location != "", "location required when name is set")
+		v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
+		// allow old spec long name
+		v.Mustf(utf8.RuneCountInString(m.Name) <= DeploymentMaxNameLength*2, "name must have length less then %d characters", DeploymentMaxNameLength*2)
+	}
 	v.Must(validDeploymentErrorListStatus(m.Status), "status invalid")
 	v.Must(validDeploymentErrorSort(m.Sort), "sort invalid")
 
@@ -100,14 +110,14 @@ type DeploymentErrorsResult struct {
 
 func (m *DeploymentErrorsResult) Table() [][]string {
 	table := [][]string{
-		{"ID", "KIND", "STATUS", "COUNT", "LAST SEEN", "TITLE"},
+		{"ID", "DEPLOYMENT", "KIND", "STATUS", "COUNT", "LAST SEEN", "TITLE"},
 	}
 	for _, x := range m.Issues {
 		last := ""
 		if !x.LastSeen.IsZero() {
 			last = x.LastSeen.UTC().Format(time.RFC3339)
 		}
-		table = append(table, []string{x.ID, x.Kind, x.Status, strconv.Itoa(int(x.Count)), last, x.Title})
+		table = append(table, []string{x.ID, x.Deployment, x.Kind, x.Status, strconv.Itoa(int(x.Count)), last, x.Title})
 	}
 	return table
 }
@@ -115,7 +125,12 @@ func (m *DeploymentErrorsResult) Table() [][]string {
 // DeploymentErrorIssue is the summary view of one grouped error — a distinct
 // stack-trace fingerprint seen one or more times.
 type DeploymentErrorIssue struct {
-	ID          string    `json:"id" yaml:"id"`
+	ID string `json:"id" yaml:"id"`
+	// Deployment and Location identify the issue's deployment. Always populated;
+	// the project-wide listing (request Name omitted) relies on them to show and
+	// link each row to its deployment.
+	Deployment  string    `json:"deployment" yaml:"deployment"`
+	Location    string    `json:"location" yaml:"location"`
 	Fingerprint string    `json:"fingerprint" yaml:"fingerprint"`
 	Kind        string    `json:"kind" yaml:"kind"`
 	Title       string    `json:"title" yaml:"title"`
