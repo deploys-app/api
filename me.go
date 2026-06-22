@@ -3,10 +3,11 @@ package api
 import (
 	"context"
 	"mime/multipart"
-	"slices"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/moonrhythm/validator"
 )
@@ -22,57 +23,69 @@ type Me interface {
 	// subset of the caller's own permissions. The caller must already hold every
 	// requested permission on the project; the minted token is strictly weaker
 	// than the caller (it grants only the requested permissions on the requested
-	// project). Intended for handing a narrowly-scoped credential to an automated
-	// agent — e.g. to upload a file to dropbox — without exposing a full token.
+	// project). Any permission the caller holds may be delegated except the
+	// non-delegatable classes (wildcards, role.*, serviceaccount.key.*,
+	// billing.*, pullsecret.get; see IsDelegatablePermission). Intended for
+	// handing a narrowly-scoped credential to an automated agent — e.g. to upload
+	// a file to dropbox — without exposing a full token. A scoped-token caller is
+	// rejected (an agent token cannot mint a further token).
 	GenerateToken(ctx context.Context, m *MeGenerateToken) (*MeGenerateTokenResult, error)
+	// ListTokens lists the caller's own active (unexpired) scoped tokens for a
+	// project. Requires authentication only (you list your own tokens); the token
+	// value is never returned. A scoped-token caller is rejected.
+	ListTokens(ctx context.Context, m *MeListTokens) (*MeListTokensResult, error)
+	// RevokeToken revokes one of the caller's own scoped tokens by its public id.
+	// Requires authentication only (you revoke your own tokens). A scoped-token
+	// caller is rejected.
+	RevokeToken(ctx context.Context, m *MeRevokeToken) (*Empty, error)
 	// UploadKYCDocument requires authentication only (no specific permission; the caller uploads their own KYC document).
 	UploadKYCDocument(ctx context.Context, m *MeUploadKYCDocument) (*MeUploadKYCDocumentResult, error)
 }
 
-// GenerateTokenPermissions is the closed set of permissions a me.generateToken
-// token may carry. It is intentionally restricted to the agent flows that need a
-// scoped, short-lived credential — the no-CLI upload flow (host an archive in
-// dropbox, then publish it), the read-only observability flow (read a
-// deployment's status and logs), direct error reporting (an app reports its own
-// errors via error.create, optionally reading them back), and the
-// ephemeral-preview flow (publish a site and deploy it as a TTL'd preview) —
-// rather than allowing an arbitrary downscope of the caller's permissions.
-// Extend it as new agent flows need it.
-//
-// deployment.deploy also authorizes deployment.extendTTL (preview keep-alive).
-var GenerateTokenPermissions = []string{
-	"dropbox.upload",
-	"site.publish",
-	"deployment.get",
-	"deployment.logs",
-	"deployment.deploy",
-	"error.create",
-	"error.list",
-	"error.get",
-}
+// MaxTokenLabelLength caps the optional attribution label on a generated token.
+const MaxTokenLabelLength = 64
 
-// MeGenerateToken requests a scoped, short-lived token. Permissions must be a
-// subset of GenerateTokenPermissions, and the caller must already hold each on
-// Project. TTLSeconds defaults to 900 (15m) and is clamped to [60, 3600].
+// ReValidTokenLabelStr matches an optional token label: a short, printable
+// attribution string (e.g. "claude-code:pr-42"). It is deliberately
+// restrictive — the label is free text used only for attribution/listing, never
+// for authorization, so it carries no sensitive material and a tight charset
+// keeps it log- and display-safe. Empty is allowed (the label is optional) and
+// is handled by the caller, not this pattern.
+const ReValidTokenLabelStr = `^[A-Za-z0-9][A-Za-z0-9 ._:/-]*$`
+
+// ReValidTokenLabel validates MeGenerateToken.Label. See ReValidTokenLabelStr.
+var ReValidTokenLabel = regexp.MustCompile(ReValidTokenLabelStr)
+
+// MeGenerateToken requests a scoped, short-lived token. The caller must already
+// hold each requested permission on Project, and each must be delegatable
+// (IsDelegatablePermission) — i.e. not a wildcard or a containment-breaking
+// class. TTLSeconds defaults to 900 (15m) and is clamped to [60, 3600]. Label is
+// an optional attribution tag for the agent session (e.g. "claude-code:pr-42").
 type MeGenerateToken struct {
 	Project     string   `json:"project" yaml:"project"`
 	Permissions []string `json:"permissions" yaml:"permissions"`
 	TTLSeconds  int      `json:"ttlSeconds" yaml:"ttlSeconds"`
+	Label       string   `json:"label" yaml:"label"`
 }
 
 func (m *MeGenerateToken) Valid() error {
 	if m.TTLSeconds == 0 {
 		m.TTLSeconds = 900
 	}
+	m.Label = strings.TrimSpace(m.Label)
 
 	v := validator.New()
 	v.Must(m.Project != "", "project required")
 	v.Must(len(m.Permissions) > 0, "permissions required")
 	for _, p := range m.Permissions {
-		v.Mustf(slices.Contains(GenerateTokenPermissions, p),
-			"permission %q is not allowed for generated tokens (allowed: %s)", p, strings.Join(GenerateTokenPermissions, ", "))
+		v.Mustf(IsDelegatablePermission(p),
+			"permission %q cannot be delegated to a generated token", p)
 	}
 	v.Must(m.TTLSeconds >= 60 && m.TTLSeconds <= 3600, "ttlSeconds must be between 60 and 3600")
+	if m.Label != "" {
+		v.Mustf(utf8.RuneCountInString(m.Label) <= MaxTokenLabelLength, "label must be at most %d characters", MaxTokenLabelLength)
+		v.Must(ReValidTokenLabel.MatchString(m.Label), "label must use letters, numbers, spaces, and ._:/- (starting with a letter or number)")
+	}
 	return WrapValidate(v)
 }
 
@@ -90,6 +103,62 @@ func (m *MeGenerateTokenResult) Table() [][]string {
 		{"TOKEN", "EXPIRES AT", "PROJECT", "PERMISSIONS"},
 		{m.Token, m.ExpiresAt.Format(time.RFC3339), m.Project, strings.Join(m.Permissions, ",")},
 	}
+}
+
+// MeListTokens lists the caller's own active scoped tokens for a project.
+type MeListTokens struct {
+	Project string `json:"project" yaml:"project"`
+}
+
+func (m *MeListTokens) Valid() error {
+	v := validator.New()
+	v.Must(m.Project != "", "project required")
+	return WrapValidate(v)
+}
+
+// MeTokenItem describes one active scoped token in MeListTokensResult. ID is a
+// non-secret public handle for revoke; the token value itself is never listed
+// (it is hash-stored and shown only once at mint).
+type MeTokenItem struct {
+	ID          string    `json:"id" yaml:"id"`
+	Label       string    `json:"label" yaml:"label"`
+	Permissions []string  `json:"permissions" yaml:"permissions"`
+	CreatedAt   time.Time `json:"createdAt" yaml:"createdAt"`
+	ExpiresAt   time.Time `json:"expiresAt" yaml:"expiresAt"`
+}
+
+// MeListTokensResult is the caller's active scoped tokens for the project.
+type MeListTokensResult struct {
+	Items []*MeTokenItem `json:"items" yaml:"items"`
+}
+
+func (m *MeListTokensResult) Table() [][]string {
+	table := [][]string{
+		{"ID", "LABEL", "PERMISSIONS", "EXPIRES AT", "AGE"},
+	}
+	for _, x := range m.Items {
+		table = append(table, []string{
+			x.ID,
+			x.Label,
+			strings.Join(x.Permissions, ","),
+			x.ExpiresAt.Format(time.RFC3339),
+			age(x.CreatedAt),
+		})
+	}
+	return table
+}
+
+// MeRevokeToken revokes one of the caller's own scoped tokens by its public id.
+type MeRevokeToken struct {
+	Project string `json:"project" yaml:"project"`
+	ID      string `json:"id" yaml:"id"`
+}
+
+func (m *MeRevokeToken) Valid() error {
+	v := validator.New()
+	v.Must(m.Project != "", "project required")
+	v.Must(m.ID != "", "id required")
+	return WrapValidate(v)
 }
 
 type MeItem struct {

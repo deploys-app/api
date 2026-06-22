@@ -177,6 +177,59 @@ func IsPublicBindablePermission(p string) bool {
 	return strings.HasSuffix(p, ".get") || strings.HasSuffix(p, ".list")
 }
 
+// IsDelegatablePermission reports whether a permission may be placed in a
+// me.generateToken scope.
+//
+// The minted token is already provably ≤ its minter and project-confined
+// (enforced per-request by the server's iam.Scope), dies on a ≤1h TTL, and is
+// revocable — so containment, not this classifier, is the primary control. The
+// mint handler additionally rejects any permission the caller does not already
+// hold, so this function never needs to re-check "does the caller have it".
+//
+// This classifier removes only the permissions that break containment *even when
+// the minter holds them*: privilege escalation, minting of credentials that
+// outlive the token, money, and secret exfiltration. Everything else the caller
+// holds is delegatable.
+//
+// It is class-based, not enumerated, so it is fail-safe for the *dangerous
+// classes*: a future role.*, serviceaccount.key.*, or billing.* permission is
+// non-delegatable the day it ships, while an ordinary new resource permission
+// (e.g. a future database.snapshot) becomes delegatable automatically, bounded
+// by containment. That fail-open default for ordinary permissions is acceptable
+// precisely because a delegated permission is one the caller already holds,
+// project-confined, enforced ≤-minter on every call, dead within an hour, and
+// revocable. (Note: me.* is authentication-only, never a grantable permission,
+// so it cannot appear here; a scoped token is barred from minting/listing/
+// revoking tokens by an iam.IsScoped guard in the handlers, not by this list.)
+func IsDelegatablePermission(p string) bool {
+	// Never delegate a wildcard — force explicit, auditable per-action scopes.
+	// (This also catches role.*, serviceaccount.*, billing.* in wildcard form.)
+	if p == "*" || strings.HasSuffix(p, ".*") {
+		return false
+	}
+	switch {
+	case strings.HasPrefix(p, "role."):
+		// Escalation: role.create / role.bind / role.delete can grant the bearer
+		// (or anyone) more than the minter has.
+		return false
+	case strings.HasPrefix(p, "serviceaccount.key."):
+		// Mints a service-account key — a credential that outlives the token's TTL.
+		// Non-key serviceaccount actions remain delegatable (they mint nothing
+		// durable).
+		return false
+	case strings.HasPrefix(p, "billing."):
+		// Money. Forward-safe: billing is authorized by billing-account ownership,
+		// not project IAM, so billing.* can't be in a project token today and the
+		// mint-time iam check would reject it anyway — the branch is kept for the
+		// day billing gains project permissions.
+		return false
+	case p == "pullsecret.get":
+		// Returns the pull-secret value (registry credentials) — secret exfiltration.
+		return false
+	}
+	return true
+}
+
 type Role interface {
 	// Create requires the `role.create` permission.
 	Create(ctx context.Context, m *RoleCreate) (*Empty, error)
