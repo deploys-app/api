@@ -127,3 +127,11 @@ func (c deploymentClient) LogsHistory(ctx context.Context, m *api.DeploymentLogs
 	return &res, nil
 }
 
+func (c deploymentClient) ExtendTTL(ctx context.Context, m *api.DeploymentExtendTTL) (*api.Empty, error) {
+	var res api.Empty
+	err := c.inv.invoke(ctx, "deployment.extendTTL", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
