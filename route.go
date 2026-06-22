@@ -60,6 +60,13 @@ func (m *RouteCreate) Valid() error {
 type RouteConfig struct {
 	BasicAuth   *RouteConfigBasicAuth   `json:"basicAuth" yaml:"basicAuth"`
 	ForwardAuth *RouteConfigForwardAuth `json:"forwardAuth" yaml:"forwardAuth"`
+	// Host overrides the Host header forwarded to the upstream. Empty keeps the
+	// original request Host (the route's own domain). It is only valid for an
+	// external http://<ip> target, whose customer-owned backend often
+	// virtual-hosts on the Host header; it is rejected for every other target
+	// type (deployment/redirect/IPFS/IPNS), where the upstream Host is either
+	// reserved for routing or meaningless.
+	Host string `json:"host" yaml:"host"`
 }
 
 type RouteConfigBasicAuth struct {
@@ -102,6 +109,17 @@ func (m *RouteCreateV2) Valid() error {
 	if m.Config.ForwardAuth != nil {
 		if v.Must(m.Config.ForwardAuth.Target != "", "target required") {
 			v.Must(validURL(m.Config.ForwardAuth.Target), "target invalid")
+		}
+	}
+
+	// Host is trimmed server-side before storage, so validate the trimmed form
+	// (an all-whitespace value is treated as unset). It is only meaningful for an
+	// external http:// target — every other target type either reserves the
+	// upstream Host for routing or has no upstream — so reject it elsewhere
+	// rather than silently dropping it.
+	if h := strings.TrimSpace(m.Config.Host); h != "" {
+		if v.Must(validExternalTarget(m.Target), "host allowed only for external targets") {
+			v.Must(validRouteHost(h), "host invalid")
 		}
 	}
 

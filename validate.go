@@ -92,6 +92,21 @@ func validURL(url string) bool {
 	return false
 }
 
+// validRouteHost reports whether host is a usable value for the route's
+// upstream Host-header override (RouteConfig.Host). It is a bare host with an
+// optional port — a DNS hostname or an IP literal — with no scheme, path, or
+// userinfo. Unlike validExternalTarget this accepts hostnames (the point of the
+// override is to send a virtual-host name the backend recognises) and does not
+// apply the SSRF public-IP guard: Host is only a header value, it does not pick
+// the backend (the target does), so it cannot redirect traffic to a private IP.
+func validRouteHost(host string) bool {
+	h, ok := splitHostPort(host)
+	if !ok || h == "" {
+		return false
+	}
+	return govalidator.IsDNSName(h) || net.ParseIP(h) != nil
+}
+
 // validExternalTarget reports whether target is a phase-1 external upstream
 // route: http://<ip>[:port] pointing at a customer-owned server. Only IP
 // literals are accepted (no hostnames yet), and the IP must be globally
