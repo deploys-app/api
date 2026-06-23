@@ -20,4 +20,11 @@ const (
 	// per-route fee. Default anchors to the egress rate and is overridable per
 	// account/location via *_skus; pending finance sign-off.
 	PriceWAFEgress = 4 // GiB (anchor: PriceEgress)
+
+	// PriceStaticEgress is the origin egress rate for Static deployments in THB
+	// per GiB — the body bytes the static-gateway streams, summed per project
+	// from static_gateway_response_bytes_total. Static has no pod, so the
+	// pod-based PriceEgress metric never sees it. Anchored to the egress rate and
+	// overridable per account/location via *_skus; pending finance sign-off.
+	PriceStaticEgress = 4 // GiB (anchor: PriceEgress)
 )
