@@ -129,8 +129,8 @@ func (m *EnvGroupList) Valid() error {
 }
 
 type EnvGroupListResult struct {
-	Project string          `json:"project" yaml:"project"`
-	Items   []*EnvGroupItem `json:"items" yaml:"items"`
+	Project string              `json:"project" yaml:"project"`
+	Items   []*EnvGroupListItem `json:"items" yaml:"items"`
 }
 
 func (m *EnvGroupListResult) Table() [][]string {
@@ -144,6 +144,19 @@ func (m *EnvGroupListResult) Table() [][]string {
 		})
 	}
 	return table
+}
+
+// EnvGroupListItem is the reduced, non-sensitive projection returned by
+// envgroup.list. An env group is a pure secret store, so the list must never
+// carry its values: this type has NO Env map — only the group metadata and
+// EnvCount (the number of keys, for UI count pills). Reading the values
+// requires envgroup.get (which returns the full EnvGroupItem with Env).
+type EnvGroupListItem struct {
+	Project   string    `json:"project" yaml:"project"`
+	Name      string    `json:"name" yaml:"name"`
+	EnvCount  int       `json:"envCount" yaml:"envCount"`
+	CreatedAt time.Time `json:"createdAt" yaml:"createdAt"`
+	CreatedBy string    `json:"createdBy" yaml:"createdBy"`
 }
 
 type EnvGroupItem struct {
