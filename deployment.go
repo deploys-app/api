@@ -474,7 +474,7 @@ func (m *DeploymentList) Valid() error {
 }
 
 type DeploymentListResult struct {
-	Items []*DeploymentItem `json:"items" yaml:"items"`
+	Items []*DeploymentListItem `json:"items" yaml:"items"`
 }
 
 func (m *DeploymentListResult) Table() [][]string {
@@ -490,6 +490,42 @@ func (m *DeploymentListResult) Table() [][]string {
 		})
 	}
 	return table
+}
+
+// DeploymentListItem is the reduced, non-sensitive projection returned by
+// deployment.list. It is a strict subset of DeploymentItem (identical field
+// names) carrying only index fields — it has NO env, mountData, command, args,
+// annotations, sidecars, access, workloadIdentity, pullSecret, disk, nodePort,
+// internalUrl/internalAddress/address, nor any of the signed log JWTs
+// (logUrl/eventUrl/podsUrl/statusUrl/errorsUrl). The security boundary lives in
+// the type: a list item cannot carry a secret or a log-access capability.
+// Reading those requires deployment.get (which returns the full DeploymentItem).
+type DeploymentListItem struct {
+	Project            string             `json:"project" yaml:"project"`
+	Location           string             `json:"location" yaml:"location"`
+	Name               string             `json:"name" yaml:"name"`
+	Type               DeploymentType     `json:"type" yaml:"type"`
+	Revision           int64              `json:"revision" yaml:"revision"`
+	Image              string             `json:"image" yaml:"image"`
+	Site               string             `json:"site" yaml:"site"`
+	SiteManifestDigest string             `json:"siteManifestDigest" yaml:"siteManifestDigest"`
+	MinReplicas        int                `json:"minReplicas" yaml:"minReplicas"`
+	MaxReplicas        int                `json:"maxReplicas" yaml:"maxReplicas"`
+	Schedule           string             `json:"schedule" yaml:"schedule"`
+	Port               int                `json:"port" yaml:"port"`
+	Protocol           DeploymentProtocol `json:"protocol" yaml:"protocol"`
+	Internal           bool               `json:"internal" yaml:"internal"`
+	Resources          DeploymentResource `json:"resources" yaml:"resources"`
+	URL                string             `json:"url" yaml:"url"`
+	Status             Status             `json:"status" yaml:"status"`
+	Action             DeploymentAction   `json:"action" yaml:"action"`
+	AllocatedPrice     float64            `json:"allocatedPrice" yaml:"allocatedPrice"`
+	CreatedAt          time.Time          `json:"createdAt" yaml:"createdAt"`
+	CreatedBy          string             `json:"createdBy" yaml:"createdBy"`
+	SuccessAt          time.Time          `json:"successAt" yaml:"successAt"`
+	TTL                int64              `json:"ttl" yaml:"ttl"`                                   // seconds until auto-delete; 0 means no TTL
+	ExpiresAt          time.Time          `json:"expiresAt" yaml:"expiresAt"`                       // wall-clock auto-delete time (created_at + ttl); zero when no TTL
+	ReleaseURL         string             `json:"releaseUrl,omitempty" yaml:"releaseUrl,omitempty"` // immutable per-release URL; Static only, empty otherwise
 }
 
 type DeploymentItem struct {
