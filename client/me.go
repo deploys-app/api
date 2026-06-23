@@ -46,6 +46,24 @@ func (c meClient) GenerateToken(ctx context.Context, m *api.MeGenerateToken) (*a
 	return &res, nil
 }
 
+func (c meClient) ListTokens(ctx context.Context, m *api.MeListTokens) (*api.MeListTokensResult, error) {
+	var res api.MeListTokensResult
+	err := c.inv.invoke(ctx, "me.listTokens", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c meClient) RevokeToken(ctx context.Context, m *api.MeRevokeToken) (*api.Empty, error) {
+	var res api.Empty
+	err := c.inv.invoke(ctx, "me.revokeToken", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 func (c meClient) UploadKYCDocument(ctx context.Context, _ *api.MeUploadKYCDocument) (*api.MeUploadKYCDocumentResult, error) {
 	return nil, nil
 }

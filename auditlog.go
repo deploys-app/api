@@ -13,6 +13,11 @@ type AuditLog interface {
 type AuditLogActor struct {
 	Email string         `json:"email" yaml:"email"`
 	Type  AuditActorType `json:"type" yaml:"type"`
+	// Label is the optional attribution tag of the scoped (agent) token the
+	// action was made under (e.g. "claude-code:pr-42"). Empty for actions not
+	// made through a labeled scoped token. It is caller-set free text for
+	// attribution only — never an authorization signal.
+	Label string `json:"label" yaml:"label"`
 }
 
 type AuditLogResource struct {
