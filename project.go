@@ -224,13 +224,16 @@ func (m *ProjectMetrics) Valid() error {
 // ProjectMetricsResult carries daily project-wide usage series. CPUUsage,
 // Memory, Disk and Replica are per-second averages for each day (the integrated
 // daily quantity divided by seconds/day), so they read as levels (vCPU, bytes,
-// replicas). Egress is the day's total bytes (pod + cache + WAF egress folded).
-// StaticStorage is the day's storage gauge in bytes.
+// replicas). Egress is the day's origin bytes (pod + WAF egress); CacheEgress is
+// the day's edge-cache HIT bytes, split out as its own series so cache offload
+// is visible rather than folded into Egress. StaticStorage is the day's storage
+// gauge in bytes.
 type ProjectMetricsResult struct {
 	CPUUsage      []*UsageMetricsLine `json:"cpuUsage" yaml:"cpuUsage"`
 	Memory        []*UsageMetricsLine `json:"memory" yaml:"memory"`
 	Disk          []*UsageMetricsLine `json:"disk" yaml:"disk"`
 	Egress        []*UsageMetricsLine `json:"egress" yaml:"egress"`
+	CacheEgress   []*UsageMetricsLine `json:"cacheEgress" yaml:"cacheEgress"`
 	Replica       []*UsageMetricsLine `json:"replica" yaml:"replica"`
 	StaticStorage []*UsageMetricsLine `json:"staticStorage" yaml:"staticStorage"`
 }
