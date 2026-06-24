@@ -413,8 +413,19 @@ func (m *DeploymentDeploy) Valid() error {
 	v.Must(validEnvName(m.AddEnv), "invalid env name")
 
 	v.Must(len(m.Sidecars) <= 2, "sidecars must less than 2")
+	seenSidecarPorts := map[int]bool{}
 	for _, s := range m.Sidecars {
-		v.Must(s.Valid(), "invalid sidecar")
+		if !v.Must(s.Valid(), "invalid sidecar") {
+			continue
+		}
+		// Sidecars share the pod network namespace with the app container; two
+		// listening on the same port bind-collide into a CrashLoopBackOff with no
+		// validation error (e.g. two cloudSqlProxy sidecars both defaulting to
+		// 3300). Reject duplicate resolved ports up front.
+		if cfg := s.Config(); cfg != nil && cfg.Port != nil {
+			v.Mustf(!seenSidecarPorts[*cfg.Port], "sidecar port %d already in use", *cfg.Port)
+			seenSidecarPorts[*cfg.Port] = true
+		}
 	}
 
 	if m.TTL != nil {
