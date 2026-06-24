@@ -39,6 +39,8 @@ type Cache interface {
 	Delete(ctx context.Context, m *CacheDelete) (*Empty, error)
 	// Metrics requires the `cache.get` permission.
 	Metrics(ctx context.Context, m *CacheMetrics) (*CacheMetricsResult, error)
+	// ResultMetrics requires the `cache.get` permission.
+	ResultMetrics(ctx context.Context, m *CacheResultMetrics) (*CacheResultMetricsResult, error)
 }
 
 // CacheOverride mirrors parapet's cacherule.Override: one cache-policy override
@@ -314,4 +316,40 @@ type CacheMetricsSeries struct {
 	Result     string       `json:"result" yaml:"result"` // applied|shadow|error
 	Total      float64      `json:"total" yaml:"total"`   // this series' sum over the range
 	Points     [][2]float64 `json:"points" yaml:"points"` // [unixSeconds, count], time-ordered
+}
+
+// CacheResultMetrics reads a project's edge response-cache outcome counts —
+// requests served by result (HIT/MISS/STALE/BYPASS, from parapet_cache_total)
+// and the bytes served by result (HIT/STALE/MISS, from parapet_cache_egress_bytes)
+// — over a time range, summed across all of the project's locations. It powers
+// the project cache page's hit-ratio chart; the caller toggles between the
+// requests and bytes view per result. Reuses WAFMetricsTimeRange.
+type CacheResultMetrics struct {
+	Project   string              `json:"project" yaml:"project"`
+	TimeRange WAFMetricsTimeRange `json:"timeRange" yaml:"timeRange"`
+}
+
+func (m *CacheResultMetrics) Valid() error {
+	v := validator.New()
+
+	v.Must(m.Project != "", "project required")
+	v.Must(validWAFMetricsTimeRange[m.TimeRange], "timeRange invalid")
+
+	return WrapValidate(v)
+}
+
+// CacheResultMetricsResult carries one series per cache result. Requests and
+// Bytes are independent time series so the caller can chart either view; Bytes
+// is empty/zero for BYPASS (bypassed responses are served from the origin and
+// carry no cache egress).
+type CacheResultMetricsResult struct {
+	Series []*CacheResultSeries `json:"series" yaml:"series"`
+}
+
+type CacheResultSeries struct {
+	Result        string       `json:"result" yaml:"result"`               // HIT|MISS|STALE|BYPASS
+	Requests      [][2]float64 `json:"requests" yaml:"requests"`           // [unixSeconds, request count], time-ordered
+	Bytes         [][2]float64 `json:"bytes" yaml:"bytes"`                 // [unixSeconds, bytes served], time-ordered
+	RequestsTotal float64      `json:"requestsTotal" yaml:"requestsTotal"` // sum of requests over the range
+	BytesTotal    float64      `json:"bytesTotal" yaml:"bytesTotal"`       // sum of bytes over the range
 }
