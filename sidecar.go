@@ -42,14 +42,31 @@ type SidecarConfig struct {
 }
 
 type CloudSQLProxySidecar struct {
-	Instance    string `json:"instance" yaml:"instance"`
-	Port        int    `json:"port" yaml:"port"`
+	Instance string `json:"instance" yaml:"instance"`
+	Port     int    `json:"port" yaml:"port"`
+	// Credentials is an optional service-account JSON for the proxy. Omit it to
+	// use the deployment's ambient credentials (bind a workloadIdentity for
+	// keyless ADC). Must be empty when AutoIAMAuthn is set.
 	Credentials string `json:"credentials" yaml:"credentials"`
+	// AutoIAMAuthn makes the proxy authenticate to the database with the caller's
+	// IAM principal (--auto-iam-authn) instead of a database password — pair it
+	// with a workloadIdentity binding so no key is needed. Mutually exclusive with
+	// Credentials.
+	AutoIAMAuthn bool `json:"autoIamAuthn" yaml:"autoIamAuthn"`
+	// PrivateIP dials the instance's private IP (--private-ip) instead of its
+	// public IP.
+	PrivateIP bool `json:"privateIp" yaml:"privateIp"`
 }
 
 func (s *CloudSQLProxySidecar) Valid() error {
 	if s.Instance == "" {
 		return fmt.Errorf("instance is required")
+	}
+	if s.AutoIAMAuthn && s.Credentials != "" {
+		// A stale long-lived key in a plaintext ConfigMap while the user believes
+		// they are keyless is the worst of both worlds — reject the combination
+		// and steer them to a workloadIdentity binding.
+		return fmt.Errorf("credentials must be empty when autoIamAuthn is set")
 	}
 	return nil
 }
@@ -70,6 +87,12 @@ func (s *CloudSQLProxySidecar) config() *SidecarConfig {
 			"--max-sigterm-delay=30s",
 		},
 		MountData: map[string]string{},
+	}
+	if s.AutoIAMAuthn {
+		cfg.Args = append(cfg.Args, "--auto-iam-authn")
+	}
+	if s.PrivateIP {
+		cfg.Args = append(cfg.Args, "--private-ip")
 	}
 	if s.Credentials != "" {
 		// cfg.Args = append(cfg.Args, "--json-credentials="+s.Credentials)
