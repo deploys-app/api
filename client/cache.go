@@ -49,3 +49,11 @@ func (c cacheClient) Metrics(ctx context.Context, m *api.CacheMetrics) (*api.Cac
 	}
 	return &res, nil
 }
+
+func (c cacheClient) ResultMetrics(ctx context.Context, m *api.CacheResultMetrics) (*api.CacheResultMetricsResult, error) {
+	var res api.CacheResultMetricsResult
+	if err := c.inv.invoke(ctx, "cache.resultMetrics", m, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}

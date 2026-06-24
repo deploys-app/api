@@ -72,3 +72,12 @@ func (c collectorClient) SetCacheOverrideUsage(ctx context.Context, m *api.Colle
 	}
 	return &res, nil
 }
+
+func (c collectorClient) SetCacheResultUsage(ctx context.Context, m *api.CollectorSetCacheResultUsage) (*api.Empty, error) {
+	var res api.Empty
+	err := c.inv.invoke(ctx, "collector.setCacheResultUsage", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}

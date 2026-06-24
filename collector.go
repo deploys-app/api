@@ -19,6 +19,8 @@ type Collector interface {
 	SetRateLimitUsage(ctx context.Context, m *CollectorSetRateLimitUsage) (*Empty, error)
 	// SetCacheOverrideUsage requires the location's collector token (internal endpoint authenticated by the per-location collector_token, not a user permission).
 	SetCacheOverrideUsage(ctx context.Context, m *CollectorSetCacheOverrideUsage) (*Empty, error)
+	// SetCacheResultUsage requires the location's collector token (internal endpoint authenticated by the per-location collector_token, not a user permission).
+	SetCacheResultUsage(ctx context.Context, m *CollectorSetCacheResultUsage) (*Empty, error)
 }
 
 type CollectorLocation struct {
@@ -147,4 +149,26 @@ type CollectorCacheOverrideUsageItem struct {
 	Result     string  `json:"result" yaml:"result"`         // applied|shadow|error
 	Value      float64 `json:"value" yaml:"value"`           // decision count in the window
 	At         int64   `json:"at" yaml:"at"`                 // unix second, minute-aligned bucket
+}
+
+// CollectorSetCacheResultUsage upserts edge response-cache outcome counts
+// collected from parapet's parapet_cache_total (requests) and
+// parapet_cache_egress_bytes (bytes) counters. Each item is one (project,
+// result) bucket for a minute, attributed to ProjectID by the request Host
+// (resolved via the location's routed domains, like cache egress). Result is
+// normalized to HIT/MISS/STALE/BYPASS (STALE_ERROR is folded into STALE).
+// Upserted by (location, project, result, at) so back-fill re-runs are
+// idempotent. Requests/Bytes are independent — a bucket may carry one without
+// the other (BYPASS has requests but no cache-egress bytes).
+type CollectorSetCacheResultUsage struct {
+	Location string                           `json:"location" yaml:"location"`
+	List     []*CollectorCacheResultUsageItem `json:"list" yaml:"list"`
+}
+
+type CollectorCacheResultUsageItem struct {
+	ProjectID int64   `json:"projectId,string" yaml:"projectId"`
+	Result    string  `json:"result" yaml:"result"`     // HIT|MISS|STALE|BYPASS
+	Requests  float64 `json:"requests" yaml:"requests"` // request count in the window
+	Bytes     float64 `json:"bytes" yaml:"bytes"`       // bytes served in the window
+	At        int64   `json:"at" yaml:"at"`             // unix second, minute-aligned bucket
 }
