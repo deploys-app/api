@@ -41,6 +41,27 @@ type SitePublishOptions struct {
 	Environment string // "production" (default) or "pr-<n>"
 	SPA         bool   // serve index.html for unmatched paths (single-page app)
 	NotFound    string // custom 404 document path, e.g. "404.html"
+
+	// Progress, when non-nil, is called as the upload proceeds so callers can
+	// render a progress bar. It is invoked once up front with Done == 0 and the
+	// final Total/BytesTotal (Path empty), then once after each file is
+	// processed. It is called synchronously on the calling goroutine, so keep it
+	// fast and non-blocking.
+	Progress func(SitePublishProgress)
+}
+
+// SitePublishProgress is a single progress update emitted during PublishSite.
+// Done/Total count files; Uploaded+Skipped count blobs actually checked against
+// the server (duplicate content within the run is neither uploaded nor skipped,
+// so Uploaded+Skipped can trail Done).
+type SitePublishProgress struct {
+	Done       int    // files processed so far
+	Total      int    // total regular files in the release
+	Uploaded   int    // blobs newly uploaded so far
+	Skipped    int    // blobs already present on the server (dedup) so far
+	BytesDone  int64  // bytes of processed files so far
+	BytesTotal int64  // total bytes across all files
+	Path       string // request path of the file just processed (e.g. "/index.html"); empty on the initial announcement
 }
 
 // SitePublishResult is the outcome of a successful PublishSite.
@@ -123,23 +144,18 @@ func (c *Client) PublishSite(ctx context.Context, opts *SitePublishOptions) (*Si
 
 	base := "sites/" + url.PathEscape(opts.Project) + "/" + url.PathEscape(opts.Name)
 
-	// 1. open an upload session.
-	var session struct {
-		Session string `json:"session"`
+	// 1. walk the directory once to collect the regular files (and their sizes)
+	// that form the release. Doing this before opening a session lets us reject an
+	// empty publish without a server round-trip and gives Progress a real Total.
+	type fileItem struct {
+		reqPath string // manifest key / request path, e.g. "/index.html"
+		abs     string // absolute path on disk to read
+		size    int64
 	}
-	if err := c.siteDo(ctx, http.MethodPost, base+"/uploads", nil, nil, "", &session); err != nil {
-		return nil, fmt.Errorf("site: open session: %w", err)
-	}
-	if session.Session == "" {
-		return nil, fmt.Errorf("site: server returned an empty session id")
-	}
-
-	// 2. walk the directory; upload each regular file as a content-addressed
-	// blob; build the manifest files map keyed by request path ("/index.html").
-	res := &SitePublishResult{}
-	files := map[string]siteManifestEntry{}
-	uploaded := map[string]bool{} // blob shas PUT this run (content dedup)
-
+	var (
+		items      []fileItem
+		bytesTotal int64
+	)
 	err = filepath.WalkDir(opts.Dir, func(p string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -151,50 +167,90 @@ func (c *Client) PublishSite(ctx context.Context, opts *SitePublishOptions) (*Si
 		if err != nil {
 			return err
 		}
-		reqPath := "/" + filepath.ToSlash(rel)
-
-		body, err := os.ReadFile(p)
+		info, err := d.Info()
 		if err != nil {
 			return err
 		}
-		sha := sha256Hex(body)
-		ct := siteContentType(reqPath)
-		cache := siteCacheClass(reqPath)
-
-		files[reqPath] = siteManifestEntry{Blob: sha, CT: ct, Cache: cache}
-		res.Files++
-
-		if uploaded[sha] {
-			return nil // identical content already PUT this run
-		}
-		uploaded[sha] = true
-
-		q := url.Values{}
-		q.Set("session", session.Session)
-		q.Set("ct", ct)
-		q.Set("cache", cache)
-		var blob struct {
-			SHA256  string `json:"sha256"`
-			Existed bool   `json:"existed"`
-		}
-		if err := c.siteDo(ctx, http.MethodPut, base+"/blobs/"+sha, q, body, ct, &blob); err != nil {
-			return fmt.Errorf("upload %s: %w", reqPath, err)
-		}
-		if blob.Existed {
-			res.Skipped++
-		} else {
-			res.Uploaded++
-		}
+		items = append(items, fileItem{
+			reqPath: "/" + filepath.ToSlash(rel),
+			abs:     p,
+			size:    info.Size(),
+		})
+		bytesTotal += info.Size()
 		return nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("site: %w", err)
 	}
-	if res.Files == 0 {
+	if len(items) == 0 {
 		return nil, fmt.Errorf("site: no files to publish in %q", opts.Dir)
 	}
 
-	// 3. assemble the manifest, content-address it, and commit the release. The
+	// 2. open an upload session.
+	var session struct {
+		Session string `json:"session"`
+	}
+	if err := c.siteDo(ctx, http.MethodPost, base+"/uploads", nil, nil, "", &session); err != nil {
+		return nil, fmt.Errorf("site: open session: %w", err)
+	}
+	if session.Session == "" {
+		return nil, fmt.Errorf("site: server returned an empty session id")
+	}
+
+	// 3. upload each regular file as a content-addressed blob (skipping any sha
+	// already PUT this run) and build the manifest files map keyed by request
+	// path. Progress, if set, is announced up front (Done 0 of Total) and once
+	// after each file is processed.
+	progress := opts.Progress
+	if progress == nil {
+		progress = func(SitePublishProgress) {}
+	}
+	res := &SitePublishResult{Files: len(items)}
+	prog := SitePublishProgress{Total: len(items), BytesTotal: bytesTotal}
+	progress(prog)
+
+	files := map[string]siteManifestEntry{}
+	uploaded := map[string]bool{} // blob shas PUT this run (content dedup)
+	for _, it := range items {
+		body, err := os.ReadFile(it.abs)
+		if err != nil {
+			return nil, fmt.Errorf("site: %w", err)
+		}
+		sha := sha256Hex(body)
+		ct := siteContentType(it.reqPath)
+		cache := siteCacheClass(it.reqPath)
+		files[it.reqPath] = siteManifestEntry{Blob: sha, CT: ct, Cache: cache}
+
+		if !uploaded[sha] {
+			uploaded[sha] = true
+
+			q := url.Values{}
+			q.Set("session", session.Session)
+			q.Set("ct", ct)
+			q.Set("cache", cache)
+			var blob struct {
+				SHA256  string `json:"sha256"`
+				Existed bool   `json:"existed"`
+			}
+			if err := c.siteDo(ctx, http.MethodPut, base+"/blobs/"+sha, q, body, ct, &blob); err != nil {
+				return nil, fmt.Errorf("site: upload %s: %w", it.reqPath, err)
+			}
+			if blob.Existed {
+				res.Skipped++
+			} else {
+				res.Uploaded++
+			}
+		}
+
+		prog.Done++
+		prog.BytesDone += it.size
+		prog.Uploaded = res.Uploaded
+		prog.Skipped = res.Skipped
+		prog.Path = it.reqPath
+		progress(prog)
+	}
+
+	// 4. assemble the manifest, content-address it, and commit the release. The
 	// release-sha is sha256 of the exact bytes we PUT (see siteManifest.Release).
 	manifestBody, err := json.Marshal(siteManifest{
 		Release:     "",
