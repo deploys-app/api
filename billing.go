@@ -42,8 +42,30 @@ type Billing interface {
 	UploadTransferSlip(ctx context.Context, m *InvoiceUploadSlip) (*InvoiceUploadSlipResult, error)
 }
 
+// Billing account entity types. A billing account is either an Individual
+// (บุคคลธรรมดา) or a Company (นิติบุคคล). The distinction is a Thai tax-document
+// requirement: a juristic person must show the "Head Office" (สำนักงานใหญ่)
+// branch designation on its tax invoices, so a Company account prints that line
+// on the invoice/receipt while an Individual does not. Empty normalizes to
+// Individual (the safe default for accounts that predate this field).
+const (
+	BillingTypeIndividual = "individual"
+	BillingTypeCompany    = "company"
+)
+
+// normalizeBillingType trims and defaults an entity type, mapping "" to
+// Individual. It returns the normalized value; the caller validates membership.
+func normalizeBillingType(t string) string {
+	t = strings.TrimSpace(t)
+	if t == "" {
+		return BillingTypeIndividual
+	}
+	return t
+}
+
 type BillingCreate struct {
 	Name       string `json:"name" yaml:"name"`
+	Type       string `json:"type" yaml:"type"`
 	TaxID      string `json:"taxId" yaml:"taxId"`
 	TaxName    string `json:"taxName" yaml:"taxName"`
 	TaxAddress string `json:"taxAddress" yaml:"taxAddress"`
@@ -51,6 +73,7 @@ type BillingCreate struct {
 
 func (m *BillingCreate) Valid() error {
 	m.Name = strings.TrimSpace(m.Name)
+	m.Type = normalizeBillingType(m.Type)
 	m.TaxID = strings.TrimSpace(m.TaxID)
 	m.TaxName = strings.TrimSpace(m.TaxName)
 	m.TaxAddress = strings.TrimSpace(m.TaxAddress)
@@ -61,6 +84,7 @@ func (m *BillingCreate) Valid() error {
 		cnt := utf8.RuneCountInString(m.Name)
 		v.Mustf(cnt >= MinNameLength && cnt <= MaxNameLength, "name must have length between %d-%d characters", MinNameLength, MaxNameLength)
 	}
+	v.Must(m.Type == BillingTypeIndividual || m.Type == BillingTypeCompany, "type must be individual or company")
 	v.Must(m.TaxID != "", "tax id required")
 	v.Must(utf8.RuneCountInString(m.TaxID) < 100, "tax id too long")
 	v.Must(m.TaxName != "", "tax name required")
@@ -106,6 +130,7 @@ func (m *BillingGet) Valid() error {
 type BillingItem struct {
 	ID         int64  `json:"id,string" yaml:"id"`
 	Name       string `json:"name" yaml:"name"`
+	Type       string `json:"type" yaml:"type"`
 	TaxID      string `json:"taxId" yaml:"taxId"`
 	TaxName    string `json:"taxName" yaml:"taxName"`
 	TaxAddress string `json:"taxAddress" yaml:"taxAddress"`
@@ -115,6 +140,7 @@ type BillingItem struct {
 type BillingUpdate struct {
 	ID         int64  `json:"id,string" yaml:"id"`
 	Name       string `json:"name" yaml:"name"`
+	Type       string `json:"type" yaml:"type"`
 	TaxID      string `json:"taxId" yaml:"taxId"`
 	TaxName    string `json:"taxName" yaml:"taxName"`
 	TaxAddress string `json:"taxAddress" yaml:"taxAddress"`
@@ -122,6 +148,7 @@ type BillingUpdate struct {
 
 func (m *BillingUpdate) Valid() error {
 	m.Name = strings.TrimSpace(m.Name)
+	m.Type = normalizeBillingType(m.Type)
 	m.TaxID = strings.TrimSpace(m.TaxID)
 	m.TaxName = strings.TrimSpace(m.TaxName)
 	m.TaxAddress = strings.TrimSpace(m.TaxAddress)
@@ -132,6 +159,7 @@ func (m *BillingUpdate) Valid() error {
 		cnt := utf8.RuneCountInString(m.Name)
 		v.Mustf(cnt >= MinNameLength && cnt <= MaxNameLength, "name must have length between %d-%d characters", MinNameLength, MaxNameLength)
 	}
+	v.Must(m.Type == BillingTypeIndividual || m.Type == BillingTypeCompany, "type must be individual or company")
 	v.Must(m.TaxID != "", "tax id required")
 	v.Must(utf8.RuneCountInString(m.TaxID) < 100, "tax id too long")
 	v.Must(m.TaxName != "", "tax name required")
@@ -212,19 +240,23 @@ func (m *InvoiceList) Valid() error {
 }
 
 type InvoiceListItem struct {
-	ID          int64     `json:"id,string" yaml:"id"`
-	Number      string    `json:"number" yaml:"number"`
-	Currency    string    `json:"currency" yaml:"currency"`
-	PeriodStart time.Time `json:"periodStart" yaml:"periodStart"`
-	PeriodEnd   time.Time `json:"periodEnd" yaml:"periodEnd"`
-	Subtotal    float64   `json:"subtotal" yaml:"subtotal"`
-	TaxAmount   float64   `json:"taxAmount" yaml:"taxAmount"`
-	Total       float64   `json:"total" yaml:"total"`
-	Status      string    `json:"status" yaml:"status"`
-	IssuedAt    time.Time `json:"issuedAt" yaml:"issuedAt"`
-	PaidAt      time.Time `json:"paidAt" yaml:"paidAt"`
-	VoidedAt    time.Time `json:"voidedAt" yaml:"voidedAt"`
-	CreatedAt   time.Time `json:"createdAt" yaml:"createdAt"`
+	ID     int64  `json:"id,string" yaml:"id"`
+	Number string `json:"number" yaml:"number"`
+	// ReceiptNumber is the receipt's own running number (DPLY-RC-YYYYMM-NNNN),
+	// assigned when the invoice is marked paid and distinct from Number. Empty
+	// until paid.
+	ReceiptNumber string    `json:"receiptNumber" yaml:"receiptNumber"`
+	Currency      string    `json:"currency" yaml:"currency"`
+	PeriodStart   time.Time `json:"periodStart" yaml:"periodStart"`
+	PeriodEnd     time.Time `json:"periodEnd" yaml:"periodEnd"`
+	Subtotal      float64   `json:"subtotal" yaml:"subtotal"`
+	TaxAmount     float64   `json:"taxAmount" yaml:"taxAmount"`
+	Total         float64   `json:"total" yaml:"total"`
+	Status        string    `json:"status" yaml:"status"`
+	IssuedAt      time.Time `json:"issuedAt" yaml:"issuedAt"`
+	PaidAt        time.Time `json:"paidAt" yaml:"paidAt"`
+	VoidedAt      time.Time `json:"voidedAt" yaml:"voidedAt"`
+	CreatedAt     time.Time `json:"createdAt" yaml:"createdAt"`
 }
 
 type InvoiceListResult struct {
@@ -263,24 +295,34 @@ type InvoiceLineItem struct {
 }
 
 type InvoiceItem struct {
-	ID               int64     `json:"id,string" yaml:"id"`
-	BillingAccountID int64     `json:"billingAccountId,string" yaml:"billingAccountId"`
-	Number           string    `json:"number" yaml:"number"`
-	Currency         string    `json:"currency" yaml:"currency"`
-	PeriodStart      time.Time `json:"periodStart" yaml:"periodStart"`
-	PeriodEnd        time.Time `json:"periodEnd" yaml:"periodEnd"`
-	Subtotal         float64   `json:"subtotal" yaml:"subtotal"`
-	TaxRate          float64   `json:"taxRate" yaml:"taxRate"`
-	TaxAmount        float64   `json:"taxAmount" yaml:"taxAmount"`
-	Total            float64   `json:"total" yaml:"total"`
-	Status           string    `json:"status" yaml:"status"`
-	TaxID            string    `json:"taxId" yaml:"taxId"`
-	TaxName          string    `json:"taxName" yaml:"taxName"`
-	TaxAddress       string    `json:"taxAddress" yaml:"taxAddress"`
-	IssuedAt         time.Time `json:"issuedAt" yaml:"issuedAt"`
-	PaidAt           time.Time `json:"paidAt" yaml:"paidAt"`
-	VoidedAt         time.Time `json:"voidedAt" yaml:"voidedAt"`
-	CreatedAt        time.Time `json:"createdAt" yaml:"createdAt"`
+	ID               int64  `json:"id,string" yaml:"id"`
+	BillingAccountID int64  `json:"billingAccountId,string" yaml:"billingAccountId"`
+	Number           string `json:"number" yaml:"number"`
+	// ReceiptNumber is the receipt's own running number (DPLY-RC-YYYYMM-NNNN),
+	// assigned when the invoice is marked paid and independent of Number. It is
+	// what the receipt / tax-invoice PDF carries as its document number; empty
+	// until the invoice is paid.
+	ReceiptNumber string    `json:"receiptNumber" yaml:"receiptNumber"`
+	Currency      string    `json:"currency" yaml:"currency"`
+	PeriodStart   time.Time `json:"periodStart" yaml:"periodStart"`
+	PeriodEnd     time.Time `json:"periodEnd" yaml:"periodEnd"`
+	Subtotal      float64   `json:"subtotal" yaml:"subtotal"`
+	TaxRate       float64   `json:"taxRate" yaml:"taxRate"`
+	TaxAmount     float64   `json:"taxAmount" yaml:"taxAmount"`
+	Total         float64   `json:"total" yaml:"total"`
+	Status        string    `json:"status" yaml:"status"`
+	TaxID         string    `json:"taxId" yaml:"taxId"`
+	TaxName       string    `json:"taxName" yaml:"taxName"`
+	TaxAddress    string    `json:"taxAddress" yaml:"taxAddress"`
+	// TaxEntityType is the buyer's entity type (individual|company) snapshotted
+	// from the billing account at issue time. A "company" prints the Head Office
+	// (สำนักงานใหญ่) branch designation on the tax document; empty/individual does
+	// not.
+	TaxEntityType string    `json:"taxEntityType" yaml:"taxEntityType"`
+	IssuedAt      time.Time `json:"issuedAt" yaml:"issuedAt"`
+	PaidAt        time.Time `json:"paidAt" yaml:"paidAt"`
+	VoidedAt      time.Time `json:"voidedAt" yaml:"voidedAt"`
+	CreatedAt     time.Time `json:"createdAt" yaml:"createdAt"`
 
 	LineItems []*InvoiceLineItem `json:"lineItems" yaml:"lineItems"`
 
