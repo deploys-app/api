@@ -71,6 +71,14 @@ type LocationFeatures struct {
 	// plane runs CP_CACHE_ENABLED (the apiserver cannot verify edge readiness, so
 	// the flag is the human contract that the edge is watching cache ConfigMaps).
 	Cache *struct{} `json:"cache,omitempty" yaml:"cache"`
+	// Transform gates the declarative request/response transform feature
+	// (transform.* RPCs). v1 runs IN-CLUSTER (the in-cluster parapet-ingress-
+	// controller's TransformZone plugin), independent of WAF/Cache: enable it only
+	// for locations whose parapet controller runs the transform plugin (the
+	// apiserver cannot verify plugin readiness, so the flag is the human contract
+	// that the controller is watching transform ConfigMaps). Enabling it before
+	// the plugin is live makes a transform.set a silent bound-but-unconsumed no-op.
+	Transform *struct{} `json:"transform,omitempty" yaml:"transform"`
 }
 
 type LocationGet struct {

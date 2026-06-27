@@ -12,6 +12,7 @@ type Interface interface {
 	Route() Route
 	WAF() WAF
 	Cache() Cache
+	Transform() Transform
 	Disk() Disk
 	PullSecret() PullSecret
 	WorkloadIdentity() WorkloadIdentity

@@ -231,6 +231,7 @@ var notificationEvents = []string{
 	"serviceAccount.create", "serviceAccount.update", "serviceAccount.delete",
 	"serviceAccount.createKey", "serviceAccount.deleteKey",
 	"site.publish",
+	"transform.set", "transform.delete",
 	"waf.set", "waf.delete",
 	"workloadidentity.create", "workloadidentity.delete",
 }

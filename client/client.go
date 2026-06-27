@@ -115,6 +115,10 @@ func (c *Client) Cache() api.Cache {
 	return cacheClient{c}
 }
 
+func (c *Client) Transform() api.Transform {
+	return transformClient{c}
+}
+
 func (c *Client) Disk() api.Disk {
 	return diskClient{c}
 }

@@ -68,6 +68,8 @@ var (
 	ErrWAFRuleInvalid                   = newError("api: waf rule invalid")
 	ErrCacheZoneNotFound                = newError("api: cache zone not found")
 	ErrCacheOverrideInvalid             = newError("api: cache override invalid")
+	ErrTransformZoneNotFound            = newError("api: transform zone not found")
+	ErrTransformRuleInvalid             = newError("api: transform rule invalid")
 	ErrGitHubRepoAlreadyLinked          = newError("api: github repository already linked")
 	ErrGitHubRepoLinkNotFound           = newError("api: github repository link not found")
 	ErrGitHubTokenInvalid               = newError("api: github token invalid")
