@@ -7,10 +7,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 go build ./...       # verify the package compiles
 go vet ./...         # run static analysis
+go test ./...        # run the unit tests
 go generate ./...    # regenerate stringer files (*_string.go)
 ```
 
-There are no tests in this repository.
+Tests cover validation helpers (including the SSRF guard in `validate.go`) and a
+few enum/permission helpers; coverage is partial, so most types have none yet.
 
 ## Architecture
 
