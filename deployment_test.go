@@ -73,3 +73,38 @@ func TestDeploymentDeployValid_NonStaticAllowsContainerConfig(t *testing.T) {
 		t.Fatalf("expected a WebService with env/envGroups/mountData to be valid, got: %v", err)
 	}
 }
+
+// TestDeploymentDeployValid_DiskSubPathMustBeRelative guards that the disk
+// subPath check rejects absolute paths (Kubernetes subPath is relative to the
+// volume) and that the error message describes that actual requirement rather
+// than its opposite.
+func TestDeploymentDeployValid_DiskSubPathMustBeRelative(t *testing.T) {
+	port := 8080
+	base := func() *DeploymentDeploy {
+		return &DeploymentDeploy{
+			Project:  "test-project",
+			Location: "gke",
+			Name:     "web",
+			Type:     DeploymentTypeWebService,
+			Image:    "nginx:latest",
+			Port:     &port,
+			Disk:     &DeploymentDisk{Name: "data", MountPath: "/data"},
+		}
+	}
+
+	m := base()
+	m.Disk.SubPath = "/abs/sub"
+	err := m.Valid()
+	if err == nil {
+		t.Fatal("expected an absolute disk subPath to be rejected")
+	}
+	if !strings.Contains(err.Error(), "must not be an absolute path") {
+		t.Fatalf("error %q does not describe the requirement (subPath must be relative)", err.Error())
+	}
+
+	m = base()
+	m.Disk.SubPath = "rel/sub"
+	if err := m.Valid(); err != nil {
+		t.Fatalf("expected a relative disk subPath to be valid, got: %v", err)
+	}
+}
