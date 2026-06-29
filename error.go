@@ -118,7 +118,7 @@ func (m *ErrorList) Valid() error {
 	// lists the whole project, with Location an optional location filter.
 	if m.Name != "" {
 		v.Must(m.Location != "", "location required when name is set")
-		v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
+		v.Must(ReValidName.MatchString(m.Name), "name invalid: "+ReValidNameDesc)
 		// allow old spec long name
 		v.Mustf(utf8.RuneCountInString(m.Name) <= DeploymentMaxNameLength*2, "name must have length less then %d characters", DeploymentMaxNameLength*2)
 	}
@@ -185,7 +185,7 @@ func (m *ErrorGet) Valid() error {
 	v := validator.New()
 
 	v.Must(m.Location != "", "location required")
-	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
+	v.Must(ReValidName.MatchString(m.Name), "name invalid: "+ReValidNameDesc)
 	v.Mustf(utf8.RuneCountInString(m.Name) <= DeploymentMaxNameLength*2, "name must have length less then %d characters", DeploymentMaxNameLength*2)
 	v.Must(m.Project != "", "project required")
 	v.Must(m.ID != "", "id required")
@@ -258,7 +258,7 @@ func (m *ErrorUpdate) Valid() error {
 	v := validator.New()
 
 	v.Must(m.Location != "", "location required")
-	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
+	v.Must(ReValidName.MatchString(m.Name), "name invalid: "+ReValidNameDesc)
 	v.Mustf(utf8.RuneCountInString(m.Name) <= DeploymentMaxNameLength*2, "name must have length less then %d characters", DeploymentMaxNameLength*2)
 	v.Must(m.Project != "", "project required")
 	v.Must(m.ID != "", "id required")
@@ -288,7 +288,7 @@ func (m *ErrorCreate) Valid() error {
 
 	v.Must(m.Project != "", "project required")
 	v.Must(m.Location != "", "location required")
-	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
+	v.Must(ReValidName.MatchString(m.Name), "name invalid: "+ReValidNameDesc)
 	v.Mustf(utf8.RuneCountInString(m.Name) <= DeploymentMaxNameLength*2, "name must have length less then %d characters", DeploymentMaxNameLength*2)
 	v.Must(len(m.Events) > 0, "events required")
 	v.Mustf(len(m.Events) <= ErrorCreateMaxEvents, "events must not exceed %d", ErrorCreateMaxEvents)

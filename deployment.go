@@ -361,7 +361,7 @@ func (m *DeploymentDeploy) Valid() error {
 	if m.Disk != nil && m.Disk.Name != "" {
 		v.Mustf(m.Disk.MountPath != "", "disk mount path required")
 		if m.Disk.SubPath != "" {
-			v.Mustf(!filepath.IsAbs(m.Disk.SubPath), "disk sub path must be absolute path")
+			v.Mustf(!filepath.IsAbs(m.Disk.SubPath), "disk sub path must not be an absolute path")
 		}
 	}
 
@@ -882,7 +882,7 @@ func (m *DeploymentLogs) Valid() error {
 	v := validator.New()
 
 	v.Must(m.Location != "", "location required")
-	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
+	v.Must(ReValidName.MatchString(m.Name), "name invalid: "+ReValidNameDesc)
 	// allow old spec long name
 	v.Mustf(utf8.RuneCountInString(m.Name) <= DeploymentMaxNameLength*2, "name must have length less then %d characters", DeploymentMaxNameLength*2)
 	v.Must(m.Project != "", "project required")
@@ -973,7 +973,7 @@ func (m *DeploymentLogsHistory) Valid() error {
 	v := validator.New()
 
 	v.Must(m.Location != "", "location required")
-	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
+	v.Must(ReValidName.MatchString(m.Name), "name invalid: "+ReValidNameDesc)
 	// allow old spec long name
 	v.Mustf(utf8.RuneCountInString(m.Name) <= DeploymentMaxNameLength*2, "name must have length less then %d characters", DeploymentMaxNameLength*2)
 	v.Must(m.Project != "", "project required")
@@ -1024,7 +1024,7 @@ func (m *DeploymentStatus) Valid() error {
 	v := validator.New()
 
 	v.Must(m.Location != "", "location required")
-	v.Must(ReValidName.MatchString(m.Name), "name invalid "+ReValidNameStr)
+	v.Must(ReValidName.MatchString(m.Name), "name invalid: "+ReValidNameDesc)
 	// allow old spec long name
 	v.Mustf(utf8.RuneCountInString(m.Name) <= DeploymentMaxNameLength*2, "name must have length less then %d characters", DeploymentMaxNameLength*2)
 	v.Must(m.Project != "", "project required")
