@@ -101,6 +101,11 @@ var permissions = []string{
 	"cache.list",
 	"cache.set",
 	"cache.delete",
+	"transform.*",
+	"transform.get",
+	"transform.list",
+	"transform.set",
+	"transform.delete",
 	"auditlog.*",
 	"auditlog.list",
 	"github.*",
@@ -165,6 +170,15 @@ func IsPublicBindablePermission(p string) bool {
 		// Issue titles and sample stack traces can echo application data and
 		// internal detail — never expose error listings to a public principal,
 		// even though they are read-only.
+		return false
+	case "transform.get", "transform.list":
+		// A transform op value can carry a credential (e.g. set-header
+		// Authorization: Bearer …), so the read response is sensitive — never
+		// expose it to a public principal. A deliberate deviation from cache/waf
+		// (whose reads are public-bindable). These reads STAY delegatable, though:
+		// delegation is attenuated (the delegator must already hold the read), so
+		// it opens no new principal the way public-binding does (see
+		// IsDelegatablePermission).
 		return false
 	case "registry.pull":
 		// Pulls image blobs; mutates nothing, and public pull is a legitimate

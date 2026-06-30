@@ -121,6 +121,28 @@ const (
 	CacheMaxTTL = 720 * time.Hour
 )
 
+// Transform (parapet transformrule)
+const (
+	TransformMaxRules = 100
+
+	// TransformMaxRuleIDLength matches parapet's 63-char cap on a rule id (rule
+	// ids will label the future parapet_transform_matches series). NOTE the cap is
+	// on the FULL stored id (<projectID>-<rand>), so the server must validate the
+	// prefixed form, not just the client-facing short id.
+	TransformMaxRuleIDLength = 63
+
+	// TransformMaxFilterLength caps the CEL filter; it shares the WAF expression
+	// surface so it uses the same budget.
+	TransformMaxFilterLength = WAFMaxExpressionLength
+
+	// TransformMaxOpsPerRule bounds the ordered op list per rule.
+	TransformMaxOpsPerRule = 16
+
+	// TransformMaxHeaderValueLength caps a set-header value (shares the WAF
+	// expression budget).
+	TransformMaxHeaderValueLength = 2048
+)
+
 // Scheduler (scheduled HTTP requests)
 const (
 	SchedulerMaxHeaders           = 50

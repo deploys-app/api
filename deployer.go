@@ -40,6 +40,8 @@ type DeployerCommandItem struct {
 	WAFDelete              *DeployerCommandWAFDelete              `json:"wafDelete,omitempty"`
 	CacheSet               *DeployerCommandCacheSet               `json:"cacheSet,omitempty"`
 	CacheDelete            *DeployerCommandCacheDelete            `json:"cacheDelete,omitempty"`
+	TransformSet           *DeployerCommandTransformSet           `json:"transformSet,omitempty"`
+	TransformDelete        *DeployerCommandTransformDelete        `json:"transformDelete,omitempty"`
 }
 
 type DeployerCommandMetadata struct {
@@ -269,6 +271,34 @@ type DeployerCommandCacheDelete struct {
 	ZoneID    string `json:"zoneId"`
 }
 
+// DeployerCommandTransformSet asks the location's deployer to materialize the
+// project's transform zone: upsert a parapet transform zone ConfigMap (name =
+// ZoneID, labeled parapet.moonrhythm.io/transform: zone) holding the
+// Transforms, and bind every one of the project's Ingresses in this location via
+// the parapet.moonrhythm.io/transform-zone annotation. Issued when
+// transform_zones.action is Create.
+//
+// Like cache there is a single ZoneID (transform is one ConfigMap; no separate
+// ratelimit-style sibling). The Transforms field marshals straight to the
+// transforms: wire key — the api field, the command field, and the parapet wire
+// document root key are all transforms (the DB JSONB column is rules, an
+// internal name only).
+type DeployerCommandTransformSet struct {
+	ID         int64           `json:"id"`
+	ProjectID  int64           `json:"projectId"`
+	ZoneID     string          `json:"zoneId"`
+	Transforms []TransformRule `json:"transforms"`
+}
+
+// DeployerCommandTransformDelete asks the location's deployer to remove the
+// project's transform zone ConfigMap and strip the transform-zone annotation
+// from its Ingresses. Issued when transform_zones.action is Delete.
+type DeployerCommandTransformDelete struct {
+	ID        int64  `json:"id"`
+	ProjectID int64  `json:"projectId"`
+	ZoneID    string `json:"zoneId"`
+}
+
 type DeployerSetResult []*DeployerSetResultItem
 
 type DeployerSetResultItem struct {
@@ -290,6 +320,8 @@ type DeployerSetResultItem struct {
 	WAFDelete              *DeployerSetResultItemGeneral    `json:"wafDelete,omitempty"`
 	CacheSet               *DeployerSetResultItemGeneral    `json:"cacheSet,omitempty"`
 	CacheDelete            *DeployerSetResultItemGeneral    `json:"cacheDelete,omitempty"`
+	TransformSet           *DeployerSetResultItemGeneral    `json:"transformSet,omitempty"`
+	TransformDelete        *DeployerSetResultItemGeneral    `json:"transformDelete,omitempty"`
 }
 
 type DeployerSetResultItemGeneral struct {
