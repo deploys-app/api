@@ -160,6 +160,7 @@ type ProjectUsageResult struct {
 	Disk           float64 `json:"disk" yaml:"disk"`
 	Replica        float64 `json:"replica" yaml:"replica"`
 	StaticStorage  float64 `json:"staticStorage" yaml:"staticStorage"`
+	DropboxStorage float64 `json:"dropboxStorage" yaml:"dropboxStorage"`
 }
 
 func (m *ProjectUsageResult) Table() [][]string {
@@ -174,6 +175,7 @@ func (m *ProjectUsageResult) Table() [][]string {
 		{"Disk", humanize.CommafWithDigits(m.Disk, 2)},
 		{"Replica", humanize.CommafWithDigits(m.Replica, 2)},
 		{"StaticStorage", humanize.CommafWithDigits(m.StaticStorage, 2)},
+		{"DropboxStorage", humanize.CommafWithDigits(m.DropboxStorage, 2)},
 	}
 	return table
 }

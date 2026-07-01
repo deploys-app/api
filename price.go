@@ -15,6 +15,12 @@ const (
 	// Unit = unitGiB * 30, so a month is realized as ~30 daily snapshots.
 	PriceStaticStorage = 1 // GiB-month
 
+	// PriceDropboxStorage is the dropbox object-storage rate in THB per
+	// GiB-month. Same as SSD Disk: PriceDisk * 60*60*24*30. Billed as a
+	// once-daily byte gauge with Unit = unitGiB * unitMonth, mirroring
+	// PriceStaticStorage.
+	PriceDropboxStorage = 10.368 // GiB-month (same as SSD Disk: PriceDisk * 60*60*24*30)
+
 	// External HTTP routes ("bring your own server" + WAF). The customer brings
 	// the compute, so we bill only edge egress served from the edge — no flat
 	// per-route fee. Default anchors to the egress rate and is overridable per
