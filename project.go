@@ -13,12 +13,14 @@ import (
 
 type Project interface {
 	// Create requires authentication only (no specific permission; the new owner role is granted to the creator).
+	// The caller must be the owner or an admin of the target billing account (accountants and non-members are refused).
 	Create(ctx context.Context, m *ProjectCreate) (*Empty, error)
 	// Get requires authentication only (no specific permission; scoped to projects the caller is a member of, or all projects for a platform admin).
 	Get(ctx context.Context, m *ProjectGet) (*ProjectItem, error)
 	// List requires authentication only (no specific permission; lists the caller's projects, or all projects for a platform admin).
 	List(ctx context.Context, m *Empty) (*ProjectListResult, error)
 	// Update requires the `*` (owner/wildcard) permission.
+	// Re-pointing the project at a billing account additionally requires the caller to be the owner or an admin of that account.
 	Update(ctx context.Context, m *ProjectUpdate) (*Empty, error)
 	// Delete requires the `project.delete` permission.
 	Delete(ctx context.Context, m *ProjectDelete) (*Empty, error)

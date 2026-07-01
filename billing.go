@@ -8,6 +8,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/asaskevich/govalidator"
 	"github.com/moonrhythm/validator"
 )
 
@@ -40,6 +41,39 @@ type Billing interface {
 	DownloadReceipt(ctx context.Context, m *InvoiceGet) (*InvoiceDownloadResult, error)
 	// UploadTransferSlip requires ownership of the invoice's billing account (enforced via GetInvoice).
 	UploadTransferSlip(ctx context.Context, m *InvoiceUploadSlip) (*InvoiceUploadSlipResult, error)
+	// ListMembers lists the invited members of a billing account.
+	// Requires the caller to be the account's owner or an admin member.
+	ListMembers(ctx context.Context, m *BillingMemberList) (*BillingMemberListResult, error)
+	// AddMember invites a user to a billing account (or changes an existing
+	// member's role). Requires the caller to be the account's owner or an admin
+	// member. The owner cannot be added as a member.
+	AddMember(ctx context.Context, m *BillingMemberAdd) (*Empty, error)
+	// RemoveMember removes an invited member from a billing account.
+	// Requires the caller to be the account's owner or an admin member.
+	RemoveMember(ctx context.Context, m *BillingMemberRemove) (*Empty, error)
+}
+
+// Billing account roles. The owner is implicit (the billing_accounts.owner
+// column) and is never stored as a member row. Invited members hold one of the
+// two member roles below.
+const (
+	// BillingRoleOwner is the account's sole owner: full control, including
+	// deleting the account and managing members. Reported by Get/List for the
+	// caller's own access; never a stored member role.
+	BillingRoleOwner = "owner"
+	// BillingRoleAdmin is a full co-manager: view + pay invoices, edit the
+	// account's tax details, and manage members. Cannot delete the account.
+	BillingRoleAdmin = "admin"
+	// BillingRoleAccountant can view invoices/receipts, view the usage report,
+	// and pay (upload a transfer slip). Cannot edit tax details, delete the
+	// account, or manage members.
+	BillingRoleAccountant = "accountant"
+)
+
+// IsValidBillingMemberRole reports whether role is a role that can be assigned
+// to an invited member (owner is implicit and not assignable).
+func IsValidBillingMemberRole(role string) bool {
+	return role == BillingRoleAdmin || role == BillingRoleAccountant
 }
 
 // Billing account entity types. A billing account is either an Individual
@@ -135,6 +169,10 @@ type BillingItem struct {
 	TaxName    string `json:"taxName" yaml:"taxName"`
 	TaxAddress string `json:"taxAddress" yaml:"taxAddress"`
 	Active     bool   `json:"active" yaml:"active"`
+	// Role is the calling user's effective role on this account
+	// (owner|admin|accountant), so a client can gate management UI without a
+	// second lookup. Empty on responses that predate membership.
+	Role string `json:"role" yaml:"role"`
 }
 
 type BillingUpdate struct {
@@ -389,4 +427,76 @@ func (m *InvoiceUploadSlip) Valid() error {
 type InvoiceUploadSlipResult struct {
 	DownloadURL string    `json:"downloadUrl" yaml:"downloadUrl"`
 	ExpiresAt   time.Time `json:"expiresAt" yaml:"expiresAt"`
+}
+
+// BillingMember is an invited (non-owner) user on a billing account.
+type BillingMember struct {
+	Email string `json:"email" yaml:"email"`
+	// Role is the member's role: "admin" or "accountant".
+	Role      string    `json:"role" yaml:"role"`
+	CreatedAt time.Time `json:"createdAt" yaml:"createdAt"`
+	// CreatedBy is the email of whoever added the member (attribution).
+	CreatedBy string `json:"createdBy" yaml:"createdBy"`
+}
+
+type BillingMemberList struct {
+	ID int64 `json:"id,string" yaml:"id"` // billing account id
+}
+
+func (m *BillingMemberList) Valid() error {
+	v := validator.New()
+
+	v.Must(m.ID > 0, "id required")
+
+	return WrapValidate(v)
+}
+
+type BillingMemberListResult struct {
+	// Owner is the account's owner email — the implicit "owner" role, listed
+	// alongside members so a client can render the full access list.
+	Owner string           `json:"owner" yaml:"owner"`
+	Items []*BillingMember `json:"items" yaml:"items"`
+}
+
+type BillingMemberAdd struct {
+	ID    int64  `json:"id,string" yaml:"id"` // billing account id
+	Email string `json:"email" yaml:"email"`
+	Role  string `json:"role" yaml:"role"` // "admin" or "accountant"
+}
+
+func (m *BillingMemberAdd) Valid() error {
+	// Canonicalize to lower-case: the invitee is matched against the email their
+	// identity provider hands us (canonical lower-case), so a mixed-case invite
+	// like "Bob@Example.com" must resolve to the same member row, not lock them out.
+	m.Email = strings.ToLower(strings.TrimSpace(m.Email))
+	m.Role = strings.TrimSpace(m.Role)
+
+	v := validator.New()
+
+	v.Must(m.ID > 0, "id required")
+	v.Must(m.Email != "", "email required")
+	// IsEmail also rejects allUsers / allAuthenticatedUsers: billing is money,
+	// so a member must be a real, addressable identity — no public principals.
+	v.Must(govalidator.IsEmail(m.Email), "email invalid")
+	v.Must(IsValidBillingMemberRole(m.Role), "role must be admin or accountant")
+
+	return WrapValidate(v)
+}
+
+type BillingMemberRemove struct {
+	ID    int64  `json:"id,string" yaml:"id"` // billing account id
+	Email string `json:"email" yaml:"email"`
+}
+
+func (m *BillingMemberRemove) Valid() error {
+	// Match the canonicalization AddMember applies, so a member added as
+	// "Bob@Example.com" (stored lower-case) can be removed by any casing.
+	m.Email = strings.ToLower(strings.TrimSpace(m.Email))
+
+	v := validator.New()
+
+	v.Must(m.ID > 0, "id required")
+	v.Must(m.Email != "", "email required")
+
+	return WrapValidate(v)
 }
