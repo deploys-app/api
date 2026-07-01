@@ -64,6 +64,8 @@ var (
 	ErrInvoicePDFUnavailable            = newError("api: invoice pdf export is not available")
 	ErrInvoicePDFFailed                 = newError("api: could not generate the invoice pdf, please try again")
 	ErrInvoiceNotPaid                   = newError("api: invoice is not paid")
+	ErrWithholdingNotAllowed            = newError("api: withholding tax is allowed on company invoices only")
+	ErrNoTransferSlip                   = newError("api: upload your payment slip before attaching a withholding tax certificate")
 	ErrBillingForbidden                 = newError("api: you do not have permission to perform this action on the billing account")
 	ErrBillingMemberNotFound            = newError("api: billing account member not found")
 	ErrBillingMemberIsOwner             = newError("api: the billing account owner cannot be added as a member")

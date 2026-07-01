@@ -125,6 +125,13 @@ func (c billingClient) UploadTransferSlip(_ context.Context, _ *api.InvoiceUploa
 	return nil, nil
 }
 
+// UploadWHTCertificate is a multipart upload; like UploadTransferSlip the JSON
+// invoker can't express it, so the Go client leaves it unimplemented. Callers
+// upload directly via multipart POST to billing.uploadWHTCertificate.
+func (c billingClient) UploadWHTCertificate(_ context.Context, _ *api.InvoiceUploadWHTCert) (*api.InvoiceUploadWHTCertResult, error) {
+	return nil, nil
+}
+
 func (c billingClient) ListMembers(ctx context.Context, m *api.BillingMemberList) (*api.BillingMemberListResult, error) {
 	var res api.BillingMemberListResult
 	err := c.inv.invoke(ctx, "billing.listMembers", m, &res)

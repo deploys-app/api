@@ -41,6 +41,12 @@ type Billing interface {
 	DownloadReceipt(ctx context.Context, m *InvoiceGet) (*InvoiceDownloadResult, error)
 	// UploadTransferSlip requires ownership of the invoice's billing account (enforced via GetInvoice).
 	UploadTransferSlip(ctx context.Context, m *InvoiceUploadSlip) (*InvoiceUploadSlipResult, error)
+	// UploadWHTCertificate attaches a withholding-tax certificate (50 ทวิ) to an
+	// invoice after the fact — for customers who send the cert later than the
+	// payment slip. It attaches to the invoice's latest transfer slip and is
+	// allowed even after the invoice is paid. Company invoices only; requires
+	// ownership of the invoice's billing account (enforced via GetInvoice).
+	UploadWHTCertificate(ctx context.Context, m *InvoiceUploadWHTCert) (*InvoiceUploadWHTCertResult, error)
 	// ListMembers lists the invited members of a billing account.
 	// Requires the caller to be the account's owner or an admin member.
 	ListMembers(ctx context.Context, m *BillingMemberList) (*BillingMemberListResult, error)
@@ -465,6 +471,42 @@ func (m *InvoiceUploadSlip) Valid() error {
 }
 
 type InvoiceUploadSlipResult struct {
+	DownloadURL string    `json:"downloadUrl" yaml:"downloadUrl"`
+	ExpiresAt   time.Time `json:"expiresAt" yaml:"expiresAt"`
+}
+
+// InvoiceUploadWHTCert carries a withholding-tax certificate (50 ทวิ) uploaded
+// on its own after payment, attaching to the invoice's latest transfer slip. It
+// is a multipart upload: the invoice id in the `id` form field and the file in
+// the `whtCert` file field.
+type InvoiceUploadWHTCert struct {
+	ID      int64
+	WHTCert *multipart.FileHeader
+}
+
+func (m *InvoiceUploadWHTCert) UnmarshalMultipartForm(v *multipart.Form) error {
+	if ids := v.Value["id"]; len(ids) == 1 {
+		m.ID, _ = strconv.ParseInt(ids[0], 10, 64)
+	}
+	if fps := v.File["whtCert"]; len(fps) == 1 {
+		m.WHTCert = fps[0]
+	}
+	return nil
+}
+
+func (m *InvoiceUploadWHTCert) Valid() error {
+	v := validator.New()
+
+	v.Must(m.ID > 0, "id required")
+	if ok := v.Must(m.WHTCert != nil, "withholding tax certificate required"); ok {
+		v.Must(m.WHTCert.Size > 0, "withholding tax certificate required")
+		v.Must(m.WHTCert.Size <= MaxWHTCertSize, "withholding tax certificate too large")
+	}
+
+	return WrapValidate(v)
+}
+
+type InvoiceUploadWHTCertResult struct {
 	DownloadURL string    `json:"downloadUrl" yaml:"downloadUrl"`
 	ExpiresAt   time.Time `json:"expiresAt" yaml:"expiresAt"`
 }
