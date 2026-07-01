@@ -332,6 +332,14 @@ type InvoiceLineItem struct {
 	Amount float64 `json:"amount" yaml:"amount"`
 }
 
+// WithholdingTaxRate is the Thai service withholding-tax rate (ภาษีหัก ณ ที่จ่าย),
+// 3%. It is the only rate this platform applies: a company buyer may deduct it
+// from the pre-VAT service amount when paying. Shared by the server (which
+// computes the withheld amount and stamps it on the invoice) and clients (which
+// preview the net transfer). The per-invoice InvoiceItem.WithholdingTaxRate is
+// the rate actually applied, snapshotted at payment.
+const WithholdingTaxRate = 0.03
+
 type InvoiceItem struct {
 	ID               int64  `json:"id,string" yaml:"id"`
 	BillingAccountID int64  `json:"billingAccountId,string" yaml:"billingAccountId"`
@@ -356,11 +364,20 @@ type InvoiceItem struct {
 	// from the billing account at issue time. A "company" prints the Head Office
 	// (สำนักงานใหญ่) branch designation on the tax document; empty/individual does
 	// not.
-	TaxEntityType string    `json:"taxEntityType" yaml:"taxEntityType"`
-	IssuedAt      time.Time `json:"issuedAt" yaml:"issuedAt"`
-	PaidAt        time.Time `json:"paidAt" yaml:"paidAt"`
-	VoidedAt      time.Time `json:"voidedAt" yaml:"voidedAt"`
-	CreatedAt     time.Time `json:"createdAt" yaml:"createdAt"`
+	TaxEntityType string `json:"taxEntityType" yaml:"taxEntityType"`
+	// WithholdingTaxRate / WithholdingTaxAmount record a withholding tax the buyer
+	// deducted when paying (Thai ภาษีหัก ณ ที่จ่าย). Only a company buyer may
+	// withhold; the amount is round(Subtotal × WithholdingTaxRate) — computed off
+	// the pre-VAT service amount, not the gross Total. Both are 0 until the invoice
+	// is paid with withholding, and 0 for a normal payment. The invoice is settled
+	// in full when PaidAmount + WithholdingTaxAmount ≥ Total: the withheld tax is
+	// remitted to the Revenue Department on the seller's behalf, not a shortfall.
+	WithholdingTaxRate   float64   `json:"withholdingTaxRate" yaml:"withholdingTaxRate"`
+	WithholdingTaxAmount float64   `json:"withholdingTaxAmount" yaml:"withholdingTaxAmount"`
+	IssuedAt             time.Time `json:"issuedAt" yaml:"issuedAt"`
+	PaidAt               time.Time `json:"paidAt" yaml:"paidAt"`
+	VoidedAt             time.Time `json:"voidedAt" yaml:"voidedAt"`
+	CreatedAt            time.Time `json:"createdAt" yaml:"createdAt"`
 
 	LineItems []*InvoiceLineItem `json:"lineItems" yaml:"lineItems"`
 
@@ -394,12 +411,24 @@ type InvoiceDownloadResult struct {
 // scans of a bank transfer; 10 MiB is generous for either.
 const MaxTransferSlipSize = 10 << 20
 
+// MaxWHTCertSize caps an optional withholding-tax certificate (50 ทวิ) uploaded
+// alongside the slip — same 10 MiB budget as the slip (photo or PDF scan).
+const MaxWHTCertSize = 10 << 20
+
 // InvoiceUploadSlip carries a customer's proof-of-payment (bank transfer slip)
 // for an invoice. It is a multipart upload: the invoice id in the `id` form
 // field and the file in the `slip` file field.
+//
+// WithholdingTax is the buyer's declaration that they deducted 3% withholding
+// tax and therefore transferred Total − WHT (see WithholdingTaxRate). Only a
+// company buyer may withhold; the server ignores the flag for other invoices.
+// WHTCert is the optional withholding-tax certificate (50 ทวิ) in the `whtCert`
+// file field — customers may attach it here or provide it out-of-band later.
 type InvoiceUploadSlip struct {
-	ID   int64
-	File *multipart.FileHeader
+	ID             int64
+	File           *multipart.FileHeader
+	WithholdingTax bool
+	WHTCert        *multipart.FileHeader
 }
 
 func (m *InvoiceUploadSlip) UnmarshalMultipartForm(v *multipart.Form) error {
@@ -408,6 +437,12 @@ func (m *InvoiceUploadSlip) UnmarshalMultipartForm(v *multipart.Form) error {
 	}
 	if fps := v.File["slip"]; len(fps) == 1 {
 		m.File = fps[0]
+	}
+	if ws := v.Value["withholdingTax"]; len(ws) == 1 {
+		m.WithholdingTax, _ = strconv.ParseBool(ws[0])
+	}
+	if fps := v.File["whtCert"]; len(fps) == 1 {
+		m.WHTCert = fps[0]
 	}
 	return nil
 }
@@ -419,6 +454,11 @@ func (m *InvoiceUploadSlip) Valid() error {
 	if ok := v.Must(m.File != nil, "slip required"); ok {
 		v.Must(m.File.Size > 0, "slip required")
 		v.Must(m.File.Size <= MaxTransferSlipSize, "slip too large")
+	}
+	// The certificate is optional; validate it only when attached.
+	if m.WHTCert != nil {
+		v.Must(m.WHTCert.Size > 0, "withholding tax certificate required")
+		v.Must(m.WHTCert.Size <= MaxWHTCertSize, "withholding tax certificate too large")
 	}
 
 	return WrapValidate(v)
