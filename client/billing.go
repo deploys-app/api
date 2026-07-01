@@ -124,3 +124,30 @@ func (c billingClient) DownloadReceipt(ctx context.Context, m *api.InvoiceGet) (
 func (c billingClient) UploadTransferSlip(_ context.Context, _ *api.InvoiceUploadSlip) (*api.InvoiceUploadSlipResult, error) {
 	return nil, nil
 }
+
+func (c billingClient) ListMembers(ctx context.Context, m *api.BillingMemberList) (*api.BillingMemberListResult, error) {
+	var res api.BillingMemberListResult
+	err := c.inv.invoke(ctx, "billing.listMembers", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c billingClient) AddMember(ctx context.Context, m *api.BillingMemberAdd) (*api.Empty, error) {
+	var res api.Empty
+	err := c.inv.invoke(ctx, "billing.addMember", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c billingClient) RemoveMember(ctx context.Context, m *api.BillingMemberRemove) (*api.Empty, error) {
+	var res api.Empty
+	err := c.inv.invoke(ctx, "billing.removeMember", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
