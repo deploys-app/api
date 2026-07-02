@@ -21,6 +21,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // MediaType is the provisional media type for TOON.
@@ -382,7 +384,9 @@ func needsQuote(s string) bool {
 	if s == "" {
 		return true
 	}
-	if isASCIISpace(s[0]) || isASCIISpace(s[len(s)-1]) {
+	first, _ := utf8.DecodeRuneInString(s)
+	last, _ := utf8.DecodeLastRuneInString(s)
+	if isBoundarySpace(first) || isBoundarySpace(last) {
 		return true
 	}
 	if s == "true" || s == "false" || s == "null" {
@@ -406,13 +410,12 @@ func needsQuote(s string) bool {
 	return false
 }
 
-func isASCIISpace(b byte) bool {
-	switch b {
-	case ' ', '\t', '\n', '\r', '\f', '\v':
-		return true
-	default:
-		return false
-	}
+// isBoundarySpace reports whether a leading/trailing rune forces quoting: any
+// Unicode whitespace, plus U+FEFF (ZWNBSP/BOM), which decoders treat as
+// space-like. An unquoted boundary space would be stripped by a decoder,
+// silently corrupting the value.
+func isBoundarySpace(r rune) bool {
+	return unicode.IsSpace(r) || r == '\uFEFF'
 }
 
 const hexDigits = "0123456789abcdef"

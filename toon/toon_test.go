@@ -131,6 +131,16 @@ func TestMarshal(t *testing.T) {
 		{"brackets", map[string]any{"v": "[x]"}, `v: "[x]"`},
 		{"braces", map[string]any{"v": "{x}"}, `v: "{x}"`},
 
+		// unicode boundary whitespace: an unquoted leading/trailing space-like
+		// rune would be stripped by a decoder, corrupting the value
+		{"leading nbsp", map[string]any{"v": "\u00a0x"}, "v: \"\u00a0x\""},
+		{"trailing nbsp", map[string]any{"v": "x\u00a0"}, "v: \"x\u00a0\""},
+		{"lone nbsp", map[string]any{"v": "\u00a0"}, "v: \"\u00a0\""},
+		{"leading ideographic space", map[string]any{"v": "\u3000x"}, "v: \"\u3000x\""},
+		{"leading zwnbsp bom", map[string]any{"v": "\ufeffx"}, "v: \"\ufeffx\""},
+		{"leading line separator", map[string]any{"v": "\u2028x"}, "v: \"\u2028x\""},
+		{"interior nbsp stays bare", map[string]any{"v": "a\u00a0b"}, "v: a\u00a0b"},
+
 		// null value in object
 		{"null value", map[string]any{"v": nil}, "v: null"},
 
