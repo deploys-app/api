@@ -155,6 +155,7 @@ type ProjectUsageResult struct {
 	CPU            float64 `json:"cpu" yaml:"cpu"`
 	Memory         float64 `json:"memory" yaml:"memory"`
 	Egress         float64 `json:"egress" yaml:"egress"`
+	CacheEgress    float64 `json:"cacheEgress" yaml:"cacheEgress"`
 	RegistryEgress float64 `json:"registryEgress" yaml:"registryEgress"`
 	DropboxEgress  float64 `json:"dropboxEgress" yaml:"dropboxEgress"`
 	Disk           float64 `json:"disk" yaml:"disk"`
@@ -170,6 +171,7 @@ func (m *ProjectUsageResult) Table() [][]string {
 		{"CPU", humanize.CommafWithDigits(m.CPU, 2)},
 		{"Memory", humanize.CommafWithDigits(m.Memory, 2)},
 		{"Egress", humanize.CommafWithDigits(m.Egress, 2)},
+		{"CacheEgress", humanize.CommafWithDigits(m.CacheEgress, 2)},
 		{"RegistryEgress", humanize.CommafWithDigits(m.RegistryEgress, 2)},
 		{"DropboxEgress", humanize.CommafWithDigits(m.DropboxEgress, 2)},
 		{"Disk", humanize.CommafWithDigits(m.Disk, 2)},
