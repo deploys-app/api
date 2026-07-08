@@ -48,6 +48,15 @@ type SidecarConfig struct {
 	Args      []string
 	Port      *int
 	MountData map[string]string
+	// HealthCheckPath, when non-empty, is the HTTP path (e.g. "/startup") the
+	// sidecar serves an HTTP health check on. The proxy-specific flags that
+	// enable that server and bind it to 0.0.0.0 are templated into Args here;
+	// the deployer picks a collision-free port (appending --http-port) and turns
+	// this into an httpGet startup probe so the app container is held until the
+	// proxy is actually serving. The probe must reach the sidecar on the pod IP,
+	// so the health server binds 0.0.0.0 even though the proxy itself listens on
+	// loopback for the app.
+	HealthCheckPath string
 }
 
 type CloudSQLProxySidecar struct {
@@ -88,14 +97,20 @@ func (s *CloudSQLProxySidecar) config() *SidecarConfig {
 
 	cfg := SidecarConfig{
 		Name:  "cloudsql-proxy",
-		Image: "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.21.2",
+		Image: "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.23.0",
 		Port:  &port,
 		Args: []string{
 			s.Instance,
 			"-p=" + strconv.Itoa(port),
 			"--max-sigterm-delay=30s",
+			// Serve health checks on the pod IP so the deployer's startup probe
+			// can reach them; the proxy itself still listens on 127.0.0.1 for the
+			// app. The deployer appends --http-port to pick a collision-free port.
+			"--health-check",
+			"--http-address=0.0.0.0",
 		},
-		MountData: map[string]string{},
+		HealthCheckPath: "/startup",
+		MountData:       map[string]string{},
 	}
 	if s.AutoIAMAuthn {
 		cfg.Args = append(cfg.Args, "--auto-iam-authn")
@@ -143,14 +158,20 @@ func (s *AlloyDBProxySidecar) config() *SidecarConfig {
 
 	cfg := SidecarConfig{
 		Name:  "alloydb-proxy",
-		Image: "gcr.io/alloydb-connectors/alloydb-auth-proxy:1.13.9",
+		Image: "gcr.io/alloydb-connectors/alloydb-auth-proxy:1.15.1",
 		Port:  &port,
 		Args: []string{
 			s.Instance,
 			"-p=" + strconv.Itoa(port),
 			"--max-sigterm-delay=30s",
+			// Serve health checks on the pod IP so the deployer's startup probe
+			// can reach them; the proxy itself still listens on 127.0.0.1 for the
+			// app. The deployer appends --http-port to pick a collision-free port.
+			"--health-check",
+			"--http-address=0.0.0.0",
 		},
-		MountData: map[string]string{},
+		HealthCheckPath: "/startup",
+		MountData:       map[string]string{},
 	}
 	if s.Credentials != "" {
 		cfg.Args = append(cfg.Args, "--credentials-file=/sidecar/alloydbproxy/credentials.json")
