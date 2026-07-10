@@ -91,6 +91,13 @@ func validWAFRules(v *validator.Validator, rules []WAFRule) {
 
 		v.Mustf(r.Expression != "", "rule %s: expression required", ref)
 		v.Mustf(utf8.RuneCountInString(r.Expression) <= WAFMaxExpressionLength, "rule %s: expression must not exceed %d characters", ref, WAFMaxExpressionLength)
+		// ipInList is a reserved platform macro (see waflistmacro.go): any use
+		// that does not match the full macro grammar is rejected here, so a
+		// half-written macro fails at Valid() instead of wedging at the engine.
+		// Whether the named list exists is a server-side check.
+		if _, err := WAFListRefs(r.Expression); err != nil {
+			v.Mustf(false, "rule %s: %v", ref, err)
+		}
 		v.Mustf(r.Action.Valid(), "rule %s: action invalid", ref)
 		if r.Status != 0 {
 			v.Mustf(r.Status >= 100 && r.Status <= 599, "rule %s: status invalid", ref)
@@ -214,6 +221,10 @@ func validWAFLimits(v *validator.Validator, limits []WAFLimit) {
 
 		l.Filter = strings.TrimSpace(l.Filter)
 		v.Mustf(utf8.RuneCountInString(l.Filter) <= WAFMaxExpressionLength, "limit %s: filter must not exceed %d characters", ref, WAFMaxExpressionLength)
+		// Same reserved-macro check as rule expressions (see waflistmacro.go).
+		if _, err := WAFListRefs(l.Filter); err != nil {
+			v.Mustf(false, "limit %s: %v", ref, err)
+		}
 	}
 }
 

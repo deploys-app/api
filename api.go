@@ -11,6 +11,7 @@ type Interface interface {
 	Domain() Domain
 	Route() Route
 	WAF() WAF
+	WAFList() WAFLists
 	Cache() Cache
 	Transform() Transform
 	Disk() Disk
