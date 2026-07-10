@@ -98,6 +98,13 @@ const (
 	WAFMaxLimitIDLength = 63
 	WAFLimitMinWindow   = time.Second
 	WAFLimitMaxWindow   = time.Hour
+
+	// waf.test sample request
+	WAFTestMaxHeaders     = 32
+	WAFTestMaxCookies     = 32
+	WAFTestMaxValueLength = 1024 // each header/cookie value, host, ip
+	WAFTestMaxPathLength  = 2048
+	WAFTestMaxQueryLength = 2048
 )
 
 // Cache overrides (parapet cacherule)
