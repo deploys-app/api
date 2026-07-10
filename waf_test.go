@@ -58,6 +58,12 @@ func TestWAFTestValid(t *testing.T) {
 		t.Fatalf("a limits-only draft was rejected: %v", err)
 	}
 
+	m = validWAFTestExpr()
+	m.Request.IP = "2001:db8::1"
+	if err := m.Valid(); err != nil {
+		t.Fatalf("an IPv6 sample ip was rejected: %v", err)
+	}
+
 	cases := []struct {
 		name   string
 		mutate func(m *WAFTest)
@@ -75,14 +81,18 @@ func TestWAFTestValid(t *testing.T) {
 		{"missing path", func(m *WAFTest) { m.Request.Path = "" }},
 		{"relative path", func(m *WAFTest) { m.Request.Path = "admin" }},
 		{"path too long", func(m *WAFTest) { m.Request.Path = "/" + strings.Repeat("a", WAFTestMaxPathLength) }},
+		{"query with leading ?", func(m *WAFTest) { m.Request.Query = "?a=1" }},
 		{"query too long", func(m *WAFTest) { m.Request.Query = strings.Repeat("a", WAFTestMaxQueryLength+1) }},
 		{"host too long", func(m *WAFTest) { m.Request.Host = strings.Repeat("a", WAFTestMaxValueLength+1) }},
 		{"method not a token", func(m *WAFTest) { m.Request.Method = "GET POST" }},
-		{"method too long", func(m *WAFTest) { m.Request.Method = strings.Repeat("A", 17) }},
+		{"method too long", func(m *WAFTest) { m.Request.Method = strings.Repeat("A", WAFTestMaxMethodLength+1) }},
 		{"invalid scheme", func(m *WAFTest) { m.Request.Scheme = "ftp" }},
 		{"invalid header name", func(m *WAFTest) { m.Request.Headers = map[string]string{"bad header": "v"} }},
 		{"host header lowercase", func(m *WAFTest) { m.Request.Headers = map[string]string{"host": "evil"} }},
 		{"host header canonical", func(m *WAFTest) { m.Request.Headers = map[string]string{"Host": "evil"} }},
+		{"case-duplicate header names", func(m *WAFTest) {
+			m.Request.Headers = map[string]string{"X-Api-Key": "a", "x-api-key": "b"}
+		}},
 		{"header value too long", func(m *WAFTest) {
 			m.Request.Headers = map[string]string{"x": strings.Repeat("a", WAFTestMaxValueLength+1)}
 		}},
@@ -104,11 +114,12 @@ func TestWAFTestValid(t *testing.T) {
 			}
 			m.Request.Cookies = c
 		}},
-		{"ip too long", func(m *WAFTest) { m.Request.IP = strings.Repeat("a", WAFTestMaxValueLength+1) }},
+		{"ip not an ip", func(m *WAFTest) { m.Request.IP = "not-an-ip" }},
 		{"country one letter", func(m *WAFTest) { m.Request.Country = "T" }},
 		{"country three letters", func(m *WAFTest) { m.Request.Country = "THA" }},
 		{"country non-letter", func(m *WAFTest) { m.Request.Country = "T1" }},
 		{"negative asn", func(m *WAFTest) { m.Request.ASN = -1 }},
+		{"asn above 32-bit", func(m *WAFTest) { m.Request.ASN = WAFTestMaxASN + 1 }},
 	}
 	for _, tc := range cases {
 		m := validWAFTestExpr()
@@ -176,5 +187,13 @@ func TestWAFTestResultTable(t *testing.T) {
 		if table[1][i] != cell {
 			t.Fatalf("table cell %d = %q, want %q", i, table[1][i], cell)
 		}
+	}
+
+	// pass outcome has no winning rule and no status; render placeholders,
+	// not "" and "0"
+	pass := &WAFTestResult{Outcome: "pass", Valid: true}
+	row := pass.Table()[1]
+	if row[1] != "-" || row[2] != "-" {
+		t.Fatalf("pass row rule/status = %q/%q, want placeholders", row[1], row[2])
 	}
 }

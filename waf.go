@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -487,7 +488,7 @@ func (m *WAFTest) Valid() error {
 func validWAFTestRequest(v *validator.Validator, r *WAFTestRequest) {
 	if r.Method != "" {
 		// an HTTP method is an RFC 7230 token, the same grammar as a field name
-		v.Must(validWAFLimitFieldName(r.Method) && len(r.Method) <= 16, "request: method invalid")
+		v.Must(validWAFLimitFieldName(r.Method) && len(r.Method) <= WAFTestMaxMethodLength, "request: method invalid")
 	}
 
 	v.Must(r.Path != "", "request: path required")
@@ -495,17 +496,26 @@ func validWAFTestRequest(v *validator.Validator, r *WAFTestRequest) {
 		v.Must(strings.HasPrefix(r.Path, "/"), "request: path must start with /")
 	}
 	v.Mustf(utf8.RuneCountInString(r.Path) <= WAFTestMaxPathLength, "request: path must not exceed %d characters", WAFTestMaxPathLength)
+	v.Must(!strings.HasPrefix(r.Query, "?"), "request: query must not start with ? (raw query string)")
 	v.Mustf(utf8.RuneCountInString(r.Query) <= WAFTestMaxQueryLength, "request: query must not exceed %d characters", WAFTestMaxQueryLength)
 	v.Mustf(utf8.RuneCountInString(r.Host) <= WAFTestMaxValueLength, "request: host must not exceed %d characters", WAFTestMaxValueLength)
 	v.Must(r.Scheme == "" || r.Scheme == "http" || r.Scheme == "https", "request: scheme invalid (want http|https)")
 
 	v.Mustf(len(r.Headers) <= WAFTestMaxHeaders, "request: headers must not exceed %d entries", WAFTestMaxHeaders)
+	seenHeaders := make(map[string]bool, len(r.Headers))
 	for name, value := range r.Headers {
 		v.Mustf(validWAFLimitFieldName(name), "request: header %q: name invalid", name)
 		// On inbound prod requests net/http moves Host into r.Host, so the
 		// engine never sees a headers["host"] entry — letting the sample
 		// create one would match expressions that can never match in prod.
 		v.Must(!strings.EqualFold(name, "host"), "request: header host not allowed (use the host field)")
+		// Header names are case-insensitive on the wire (net/http canonicalizes
+		// inbound names into one entry, and the engine lowercases them), so
+		// case-duplicates would collapse to one map key in nondeterministic
+		// last-write-wins order — an impossible prod state, same as "host".
+		lower := strings.ToLower(name)
+		v.Mustf(!seenHeaders[lower], "request: header %q: duplicate name (names are case-insensitive)", name)
+		seenHeaders[lower] = true
 		v.Mustf(utf8.RuneCountInString(value) <= WAFTestMaxValueLength, "request: header %q: value must not exceed %d characters", name, WAFTestMaxValueLength)
 	}
 
@@ -515,12 +525,17 @@ func validWAFTestRequest(v *validator.Validator, r *WAFTestRequest) {
 		v.Mustf(utf8.RuneCountInString(value) <= WAFTestMaxValueLength, "request: cookie %q: value must not exceed %d characters", name, WAFTestMaxValueLength)
 	}
 
-	v.Mustf(utf8.RuneCountInString(r.IP) <= WAFTestMaxValueLength, "request: ip must not exceed %d characters", WAFTestMaxValueLength)
+	if r.IP != "" {
+		// In prod X-Real-IP is proxy-set from a real peer address, so
+		// request.remote_ip is never garbage — a non-IP sample value would
+		// match (or silently no-match, e.g. ipInCidr) in ways prod can't.
+		v.Must(net.ParseIP(r.IP) != nil, "request: ip invalid")
+	}
 
 	if r.Country != "" {
 		v.Must(len(r.Country) == 2 && isASCIILetter(r.Country[0]) && isASCIILetter(r.Country[1]), "request: country must be a 2-letter code")
 	}
-	v.Must(r.ASN >= 0, "request: asn must not be negative")
+	v.Must(r.ASN >= 0 && r.ASN <= WAFTestMaxASN, "request: asn invalid")
 }
 
 func isASCIILetter(c byte) bool {
@@ -560,12 +575,20 @@ func (m *WAFTestResult) Table() [][]string {
 			matchedLimits++
 		}
 	}
+	rule := m.WinningRuleID
+	if rule == "" {
+		rule = "-"
+	}
+	status := "-"
+	if m.Status != 0 {
+		status = strconv.Itoa(m.Status)
+	}
 	return [][]string{
 		{"OUTCOME", "RULE", "STATUS", "MATCHED RULES", "MATCHED LIMITS"},
 		{
 			m.Outcome,
-			m.WinningRuleID,
-			strconv.Itoa(m.Status),
+			rule,
+			status,
 			strconv.Itoa(matchedRules),
 			strconv.Itoa(matchedLimits),
 		},
