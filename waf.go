@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -35,6 +36,8 @@ type WAF interface {
 	Metrics(ctx context.Context, m *WAFMetrics) (*WAFMetricsResult, error)
 	// LimitMetrics requires the `waf.get` permission.
 	LimitMetrics(ctx context.Context, m *WAFLimitMetrics) (*WAFLimitMetricsResult, error)
+	// Test requires the `waf.get` permission.
+	Test(ctx context.Context, m *WAFTest) (*WAFTestResult, error)
 }
 
 // WAFRule mirrors parapet's waf.Rule. Expression is a CEL expression returning
@@ -415,4 +418,208 @@ type WAFLimitMetricsSeries struct {
 	Result  string       `json:"result" yaml:"result"` // allowed|limited
 	Total   float64      `json:"total" yaml:"total"`   // this series' sum over the range
 	Points  [][2]float64 `json:"points" yaml:"points"` // [unixSeconds, count], time-ordered
+}
+
+// WAFTest dry-runs a zone draft (or a single expression) against a synthetic
+// sample request. Nothing is stored and nothing reaches the cluster; the
+// server compiles with the same CEL environment as the parapet engine
+// (waf.NewPredicate) and reports what the zone would do.
+type WAFTest struct {
+	Project  string `json:"project" yaml:"project"`
+	Location string `json:"location" yaml:"location"`
+
+	// Expression is single-expression mode: compile/evaluate one CEL
+	// expression (same request.* surface as WAFRule.Expression). Mutually
+	// exclusive with Rules/Limits.
+	Expression string `json:"expression" yaml:"expression"`
+
+	// Rules+Limits are zone-draft mode: the same payload as WAFSet. IDs are
+	// used as given (or "#<index>" when empty) — never resolved or generated.
+	Rules  []WAFRule  `json:"rules" yaml:"rules"`
+	Limits []WAFLimit `json:"limits" yaml:"limits"`
+
+	Request WAFTestRequest `json:"request" yaml:"request"`
+}
+
+// WAFTestRequest is the synthetic sample request. country/asn are simulation
+// inputs taken verbatim — the server performs NO GeoIP lookup.
+type WAFTestRequest struct {
+	Method  string            `json:"method" yaml:"method"` // "" = GET
+	Path    string            `json:"path" yaml:"path"`     // required, must start with "/"
+	Query   string            `json:"query" yaml:"query"`   // raw query string, no leading "?"
+	Host    string            `json:"host" yaml:"host"`
+	Scheme  string            `json:"scheme" yaml:"scheme"`   // "" = https (sets X-Forwarded-Proto)
+	Headers map[string]string `json:"headers" yaml:"headers"` // single value per name
+	Cookies map[string]string `json:"cookies" yaml:"cookies"`
+	IP      string            `json:"ip" yaml:"ip"`           // request.remote_ip (wins over a headers["x-real-ip"] entry)
+	Country string            `json:"country" yaml:"country"` // request.country, e.g. "TH"; "" = unresolved
+	ASN     int64             `json:"asn" yaml:"asn"`         // request.asn, e.g. 13335; 0 = unresolved
+}
+
+func (m *WAFTest) Valid() error {
+	v := validator.New()
+
+	v.Must(m.Project != "", "project required")
+	v.Must(m.Location != "", "location required")
+
+	m.Expression = strings.TrimSpace(m.Expression)
+	exprMode := m.Expression != ""
+	draftMode := len(m.Rules)+len(m.Limits) > 0
+	// An empty zone draft is deliberately not testable: with both
+	// discriminators empty the mode is ambiguous, and the outcome would be
+	// trivially pass.
+	v.Must(exprMode || draftMode, "expression or rules/limits required")
+	v.Must(!(exprMode && draftMode), "expression and rules/limits are mutually exclusive")
+	if exprMode {
+		v.Mustf(utf8.RuneCountInString(m.Expression) <= WAFMaxExpressionLength, "expression must not exceed %d characters", WAFMaxExpressionLength)
+	}
+	if draftMode {
+		validWAFRules(v, m.Rules)
+		validWAFLimits(v, m.Limits)
+	}
+
+	validWAFTestRequest(v, &m.Request)
+
+	return WrapValidate(v)
+}
+
+// validWAFTestRequest validates the structural contract of the sample
+// request. method/country casing is normalized server-side, not here.
+func validWAFTestRequest(v *validator.Validator, r *WAFTestRequest) {
+	if r.Method != "" {
+		// an HTTP method is an RFC 7230 token, the same grammar as a field name
+		v.Must(validWAFLimitFieldName(r.Method) && len(r.Method) <= WAFTestMaxMethodLength, "request: method invalid")
+	}
+
+	v.Must(r.Path != "", "request: path required")
+	if r.Path != "" {
+		v.Must(strings.HasPrefix(r.Path, "/"), "request: path must start with /")
+	}
+	v.Mustf(utf8.RuneCountInString(r.Path) <= WAFTestMaxPathLength, "request: path must not exceed %d characters", WAFTestMaxPathLength)
+	v.Must(!strings.HasPrefix(r.Query, "?"), "request: query must not start with ? (raw query string)")
+	v.Mustf(utf8.RuneCountInString(r.Query) <= WAFTestMaxQueryLength, "request: query must not exceed %d characters", WAFTestMaxQueryLength)
+	v.Mustf(utf8.RuneCountInString(r.Host) <= WAFTestMaxValueLength, "request: host must not exceed %d characters", WAFTestMaxValueLength)
+	v.Must(r.Scheme == "" || r.Scheme == "http" || r.Scheme == "https", "request: scheme invalid (want http|https)")
+
+	v.Mustf(len(r.Headers) <= WAFTestMaxHeaders, "request: headers must not exceed %d entries", WAFTestMaxHeaders)
+	seenHeaders := make(map[string]bool, len(r.Headers))
+	for name, value := range r.Headers {
+		v.Mustf(validWAFLimitFieldName(name), "request: header %q: name invalid", name)
+		// On inbound prod requests net/http moves Host into r.Host, so the
+		// engine never sees a headers["host"] entry — letting the sample
+		// create one would match expressions that can never match in prod.
+		v.Must(!strings.EqualFold(name, "host"), "request: header host not allowed (use the host field)")
+		// Header names are case-insensitive on the wire (net/http canonicalizes
+		// inbound names into one entry, and the engine lowercases them), so
+		// case-duplicates would collapse to one map key in nondeterministic
+		// last-write-wins order — an impossible prod state, same as "host".
+		lower := strings.ToLower(name)
+		v.Mustf(!seenHeaders[lower], "request: header %q: duplicate name (names are case-insensitive)", name)
+		seenHeaders[lower] = true
+		v.Mustf(utf8.RuneCountInString(value) <= WAFTestMaxValueLength, "request: header %q: value must not exceed %d characters", name, WAFTestMaxValueLength)
+	}
+
+	v.Mustf(len(r.Cookies) <= WAFTestMaxCookies, "request: cookies must not exceed %d entries", WAFTestMaxCookies)
+	for name, value := range r.Cookies {
+		v.Mustf(validWAFLimitFieldName(name), "request: cookie %q: name invalid", name)
+		v.Mustf(utf8.RuneCountInString(value) <= WAFTestMaxValueLength, "request: cookie %q: value must not exceed %d characters", name, WAFTestMaxValueLength)
+	}
+
+	if r.IP != "" {
+		// In prod X-Real-IP is proxy-set from a real peer address, so
+		// request.remote_ip is never garbage — a non-IP sample value would
+		// match (or silently no-match, e.g. ipInCidr) in ways prod can't.
+		v.Must(net.ParseIP(r.IP) != nil, "request: ip invalid")
+	}
+
+	if r.Country != "" {
+		v.Must(len(r.Country) == 2 && isASCIILetter(r.Country[0]) && isASCIILetter(r.Country[1]), "request: country must be a 2-letter code")
+	}
+	v.Must(r.ASN >= 0 && r.ASN <= WAFTestMaxASN, "request: asn invalid")
+}
+
+func isASCIILetter(c byte) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+}
+
+// WAFTestResult reports the dry run. Rules come back in evaluation order
+// (ascending priority, stable) — the same order the engine runs them.
+type WAFTestResult struct {
+	// Outcome mirrors the engine's terminal disposition: pass | allow | block.
+	// (Never "error": the dry run reports errors per rule and fails open,
+	// matching the engine's default FailMode.)
+	Outcome       string `json:"outcome" yaml:"outcome"`
+	WinningRuleID string `json:"winningRuleId" yaml:"winningRuleId"` // "" on pass
+	Status        int    `json:"status" yaml:"status"`               // block only: response status (default 403); else 0
+	Message       string `json:"message" yaml:"message"`             // block only: response body (default "Forbidden"); else ""
+
+	Rules  []WAFTestRuleResult  `json:"rules" yaml:"rules"`
+	Limits []WAFTestLimitResult `json:"limits" yaml:"limits"` // input order
+
+	// Valid is false when any rule/limit failed to compile — the same draft
+	// would be rejected by waf.set (which compile-validates) and by the
+	// engine's all-or-nothing SetRules.
+	Valid bool `json:"valid" yaml:"valid"`
+}
+
+func (m *WAFTestResult) Table() [][]string {
+	matchedRules := 0
+	for _, r := range m.Rules {
+		if r.Matched {
+			matchedRules++
+		}
+	}
+	matchedLimits := 0
+	for _, l := range m.Limits {
+		if l.FilterMatched {
+			matchedLimits++
+		}
+	}
+	rule := m.WinningRuleID
+	if rule == "" {
+		rule = "-"
+	}
+	status := "-"
+	if m.Status != 0 {
+		status = strconv.Itoa(m.Status)
+	}
+	return [][]string{
+		{"OUTCOME", "RULE", "STATUS", "MATCHED RULES", "MATCHED LIMITS"},
+		{
+			m.Outcome,
+			rule,
+			status,
+			strconv.Itoa(matchedRules),
+			strconv.Itoa(matchedLimits),
+		},
+	}
+}
+
+type WAFTestRuleResult struct {
+	ID       string    `json:"id" yaml:"id"` // echoed input id, or "#<index>" when empty; "expression" in expression mode
+	Action   WAFAction `json:"action" yaml:"action"`
+	Priority int       `json:"priority" yaml:"priority"`
+	Matched  bool      `json:"matched" yaml:"matched"`
+	// Evaluated is false for rules after the terminating allow/block — the
+	// engine short-circuits there; Matched is still reported (the dry run
+	// evaluates every rule independently) so the panel can show all hits.
+	Evaluated bool   `json:"evaluated" yaml:"evaluated"`
+	Terminal  bool   `json:"terminal" yaml:"terminal"` // this rule decided the outcome
+	Error     string `json:"error" yaml:"error"`       // compile or eval error; empty = ok
+}
+
+type WAFTestLimitResult struct {
+	ID   string `json:"id" yaml:"id"`     // echoed input id, or "#<index>"
+	Mode string `json:"mode" yaml:"mode"` // enforce | shadow (echo, defaulted)
+	// FilterMatched: the limit's filter selects this request — true when the
+	// filter is empty (limit covers everything) or the filter matches.
+	FilterMatched bool `json:"filterMatched" yaml:"filterMatched"`
+	// Counted: the request would actually be counted against this limit =
+	// FilterMatched && Outcome != "block". In the proxy chain the zone WAF
+	// runs before the zone rate limiter, so a rule-blocked request never
+	// reaches the limiter and burns no rate budget. Whether a counted
+	// request would actually be *limited* depends on live counters, which a
+	// dry run cannot know.
+	Counted bool   `json:"counted" yaml:"counted"`
+	Error   string `json:"error" yaml:"error"`
 }
