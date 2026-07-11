@@ -66,3 +66,12 @@ func (c wafClient) Test(ctx context.Context, m *api.WAFTest) (*api.WAFTestResult
 	}
 	return &res, nil
 }
+
+func (c wafClient) Events(ctx context.Context, m *api.WAFEvents) (*api.WAFEventsResult, error) {
+	var res api.WAFEventsResult
+	err := c.inv.invoke(ctx, "waf.events", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
