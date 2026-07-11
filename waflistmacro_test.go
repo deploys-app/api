@@ -74,7 +74,11 @@ func TestWAFListRefsMalformed(t *testing.T) {
 	}{
 		{"bare token", `ipInList`},
 		{"bare token in expr", `ipInList && true`},
-		{"selector use", `x.ipInList == 1`}, // reserved everywhere outside literals/comments
+		{"selector use", `x.ipInList == 1`},                              // reserved everywhere outside literals/comments
+		{"receiver call", `x.ipInList(request.remote_ip, "office-ips")`}, // would expand to x.(…)
+		{"receiver call spaced", "x .\n ipInList(request.remote_ip, \"office-ips\")"},
+		{"receiver call after index", `request.headers["x"].ipInList(a.b, "office-ips")`},
+		{"digit-glued token", `123ipInList(a.b, "office-ips")`},
 		{"missing args", `ipInList()`},
 		{"missing name", `ipInList(request.remote_ip)`},
 		{"unquoted name", `ipInList(request.remote_ip, office)`},
@@ -111,6 +115,7 @@ func TestExpandWAFListMacros(t *testing.T) {
 		"office-ips": {"203.0.113.0/24", "198.51.100.7", "2001:db8::/48"},
 		"empty-list": {},
 		"one-v6":     {"2001:db8::1"},
+		"sloppy":     {"10.1.2.3/8", "2001:DB8::7"}, // corrupt-but-parseable: normalization at wafList.set missed
 	}
 	resolve := func(name string) ([]string, bool) {
 		entries, ok := lists[name]
@@ -157,6 +162,21 @@ func TestExpandWAFListMacros(t *testing.T) {
 			`request.path == "ipInList(a, \"office-ips\")"`,
 			`request.path == "ipInList(a, \"office-ips\")"`,
 		},
+		{
+			"two macros with text between and after",
+			`ipInList(request.remote_ip, "one-v6") && !ipInList(request.headers["x-real-ip"], "empty-list") || request.country == "TH"`,
+			`(ipInCidr(request.remote_ip, "2001:db8::1/128")) && !(false) || request.country == "TH"`,
+		},
+		{
+			"three macros back to back",
+			`ipInList(a.b, "empty-list") || ipInList(a.b, "one-v6") || ipInList(a.b, "empty-list")`,
+			`(false) || (ipInCidr(a.b, "2001:db8::1/128")) || (false)`,
+		},
+		{
+			"unmasked or uppercase entries splice canonical",
+			`ipInList(request.remote_ip, "sloppy")`,
+			`(ipInCidr(request.remote_ip, "10.0.0.0/8") || ipInCidr(request.remote_ip, "2001:db8::7/128"))`,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -190,6 +210,13 @@ func TestExpandWAFListMacros(t *testing.T) {
 
 	t.Run("malformed usage", func(t *testing.T) {
 		_, err := ExpandWAFListMacros(`ipInList(request.remote_ip)`, resolve)
+		if err == nil || !strings.Contains(err.Error(), "ipInList usage must be") {
+			t.Fatalf("expected usage error, got %v", err)
+		}
+	})
+
+	t.Run("receiver form rejected", func(t *testing.T) {
+		_, err := ExpandWAFListMacros(`x.ipInList(request.remote_ip, "office-ips")`, resolve)
 		if err == nil || !strings.Contains(err.Error(), "ipInList usage must be") {
 			t.Fatalf("expected usage error, got %v", err)
 		}

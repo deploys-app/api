@@ -103,23 +103,23 @@ func ExpandWAFListMacros(expr string, resolve func(name string) ([]string, bool)
 
 // wafListEntryCIDR canonicalizes one stored list entry into the CIDR text an
 // ipInCidr term carries. Entries are normalized at wafList.set, but expansion
-// re-validates so a corrupt entry can never splice broken (or worse,
-// meaning-changing) text into engine CEL.
+// re-parses and re-renders (masked prefix, canonical address text, bare
+// addresses get /32 or /128) so the spliced text is canonical by construction
+// — a corrupt-but-parseable entry (unmasked host bits, uppercase IPv6) can
+// never reach engine CEL, let alone a broken or meaning-changing one.
 func wafListEntryCIDR(e string) (string, error) {
 	if strings.Contains(e, "/") {
-		if _, err := netip.ParsePrefix(e); err != nil {
+		prefix, err := netip.ParsePrefix(e)
+		if err != nil {
 			return "", fmt.Errorf("waf list entry %q invalid", e)
 		}
-		return e, nil
+		return prefix.Masked().String(), nil
 	}
 	addr, err := netip.ParseAddr(e)
 	if err != nil || addr.Zone() != "" {
 		return "", fmt.Errorf("waf list entry %q invalid", e)
 	}
-	if addr.Is4() {
-		return e + "/32", nil
-	}
-	return e + "/128", nil
+	return netip.PrefixFrom(addr, addr.BitLen()).String(), nil
 }
 
 // scanWAFListMacros walks expr, skipping string literals (all CEL forms:
@@ -127,13 +127,21 @@ func wafListEntryCIDR(e string) (string, error) {
 // combination, honoring \-escapes in non-raw forms) and // comments, and
 // calls emit for every ipInList macro with its operand text, list name, and
 // the [start, end) bounds of the whole macro in expr. A reserved-token
-// occurrence that does not parse as the full macro grammar is an error.
+// occurrence that does not parse as the full macro grammar is an error, and
+// so is the token in member-selector position (x.ipInList(…)): it matches the
+// grammar textually but would expand to `x.(…)` — engine-invalid CEL — so it
+// must fail structurally instead.
 func scanWAFListMacros(expr string, emit func(operand, name string, start, end int) error) error {
 	n := len(expr)
 	i := 0
+	// prevDot: the last significant (non-whitespace, non-comment) byte was
+	// '.', i.e. the next identifier is a member selector
+	prevDot := false
 	for i < n {
 		c := expr[i]
 		switch {
+		case c == ' ' || c == '\t' || c == '\n' || c == '\r':
+			i++
 		case c == '/' && i+1 < n && expr[i+1] == '/':
 			j := strings.IndexByte(expr[i:], '\n')
 			if j < 0 {
@@ -142,17 +150,26 @@ func scanWAFListMacros(expr string, emit func(operand, name string, start, end i
 			i += j + 1
 		case c == '"' || c == '\'':
 			i = skipWAFStringLiteral(expr, i, false)
+			prevDot = false
 		case isWAFIdentStart(c):
 			start := i
 			for i < n && isWAFIdentChar(expr[i]) {
 				i++
 			}
 			ident := expr[start:i]
+			selector := prevDot
+			prevDot = false
 			if i < n && (expr[i] == '"' || expr[i] == '\'') && isWAFStringPrefix(ident) {
 				i = skipWAFStringLiteral(expr, i, strings.ContainsAny(ident, "rR"))
 				continue
 			}
 			if ident == wafListMacroToken {
+				// selector position, or glued to a preceding digit
+				// (123ipInList — only digits can abut: a letter/underscore
+				// would have merged into one identifier)
+				if selector || start > 0 && isWAFIdentChar(expr[start-1]) {
+					return errWAFListMacroUsage
+				}
 				operand, name, end, err := parseWAFListMacro(expr, i)
 				if err != nil {
 					return err
@@ -163,6 +180,7 @@ func scanWAFListMacros(expr string, emit func(operand, name string, start, end i
 				i = end
 			}
 		default:
+			prevDot = c == '.'
 			i++
 		}
 	}
