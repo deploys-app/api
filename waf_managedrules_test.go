@@ -172,6 +172,27 @@ func TestWAFManagedRulesWire(t *testing.T) {
 		}
 	})
 
+	t.Run("item omits unset managed rules", func(t *testing.T) {
+		b, err := json.Marshal(WAFItem{Project: "p", Location: "gke"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(b), `"managedRules"`) {
+			t.Errorf(`unset managedRules must be omitted, not emitted as null: %s`, b)
+		}
+
+		b, err = json.Marshal(WAFItem{Project: "p", Location: "gke", ManagedRules: &WAFManagedRules{}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(b), `"excludedRules"`) {
+			t.Errorf(`empty excludedRules must be omitted, not emitted as null: %s`, b)
+		}
+		if !strings.Contains(string(b), `"managedRules"`) {
+			t.Errorf(`configured managedRules block must be emitted: %s`, b)
+		}
+	})
+
 	t.Run("old payload leaves field nil", func(t *testing.T) {
 		var m WAFSet
 		if err := json.Unmarshal([]byte(`{"project":"p","location":"gke","rules":[],"limits":[]}`), &m); err != nil {
@@ -249,5 +270,16 @@ func TestWAFLocationFeatureCompat(t *testing.T) {
 	}
 	if f.WAF != nil {
 		t.Errorf("absent waf feature must stay nil, got %+v", f.WAF)
+	}
+
+	// Marshal direction: a zero WAFLocationFeature must round-trip back to the
+	// legacy {"waf":{}} shape (ManagedRules omitempty), so stored features and
+	// old-CLI location output stay byte-stable if the server re-marshals them.
+	b, err := json.Marshal(LocationFeatures{WAF: &WAFLocationFeature{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(b) != `{"waf":{}}` {
+		t.Errorf(`zero WAF feature must marshal to {"waf":{}}, got %s`, b)
 	}
 }

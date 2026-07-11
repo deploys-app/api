@@ -255,7 +255,7 @@ type WAFManagedRules struct {
 	// false-positive relief. Only detection-rule ids are accepted
 	// (911100..948999); the CRS setup (900xxx) and scoring/evaluation
 	// machinery (949xxx+) cannot be excluded.
-	ExcludedRules []int `json:"excludedRules" yaml:"excludedRules,omitempty"`
+	ExcludedRules []int `json:"excludedRules,omitempty" yaml:"excludedRules,omitempty"`
 }
 
 // validWAFManagedRules validates the structural contract of a managed-rules
@@ -385,10 +385,12 @@ type WAFItem struct {
 	Description string     `json:"description" yaml:"description"`
 	Rules       []WAFRule  `json:"rules" yaml:"rules"`
 	Limits      []WAFLimit `json:"limits" yaml:"limits"`
-	// ManagedRules is nil only when the block was never configured (or was
-	// cleared by a Set that omitted it); a disabled-but-tuned block round-trips
+	// ManagedRules is nil (and omitted from JSON) when the block was never
+	// configured, was cleared by a Set that omitted it, or was set all-zero —
+	// the server normalizes the zero value to unset (spec §3.2), so managedRules:{}
+	// does not round-trip as "off". A disabled-but-tuned block round-trips
 	// through Get → edit → Set intact so re-enabling restores the tuning.
-	ManagedRules *WAFManagedRules `json:"managedRules" yaml:"managedRules,omitempty"`
+	ManagedRules *WAFManagedRules `json:"managedRules,omitempty" yaml:"managedRules,omitempty"`
 	// Status and Action expose the materialization state: Status is Pending
 	// while the deployer is (un)applying the zone and Success once live; Action
 	// is Create (set) or Delete (tearing down). Both are read-only.
