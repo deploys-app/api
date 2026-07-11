@@ -78,14 +78,23 @@ func TestWAFEventsValid(t *testing.T) {
 		}
 	}
 
-	// ruleId is trimmed like WAFRule.ID (a copy-pasted id keeps working)
+	// filters are trimmed like WAFRule.ID (a copy-pasted value keeps working;
+	// §G blesses hand-editing the query params these map onto)
 	m := validWAFEvents()
 	m.RuleID = "  abc  "
+	m.Action = " block "
+	m.Before = " 01HZZZZZZZZZZZZZZZZZZZZZZZ "
 	if err := m.Valid(); err != nil {
-		t.Fatalf("a padded ruleId must validate after trim: %v", err)
+		t.Fatalf("padded filters must validate after trim: %v", err)
 	}
 	if m.RuleID != "abc" {
 		t.Fatalf("ruleId must be trimmed, got %q", m.RuleID)
+	}
+	if m.Action != "block" {
+		t.Fatalf("action must be trimmed, got %q", m.Action)
+	}
+	if m.Before != "01HZZZZZZZZZZZZZZZZZZZZZZZ" {
+		t.Fatalf("before must be trimmed, got %q", m.Before)
 	}
 }
 
@@ -194,8 +203,59 @@ func TestValidWAFEventID(t *testing.T) {
 		{"01H ZZZZZZZZZZZZZZZZZZZZZZ", false},  // space
 	}
 	for _, tc := range cases {
-		if got := validWAFEventID(tc.id); got != tc.ok {
-			t.Fatalf("validWAFEventID(%q)=%v want %v", tc.id, got, tc.ok)
+		if got := ValidWAFEventID(tc.id); got != tc.ok {
+			t.Fatalf("ValidWAFEventID(%q)=%v want %v", tc.id, got, tc.ok)
 		}
+	}
+}
+
+// TestWAFEventWire pins the read-API JSON field names: console (TypeScript,
+// no shared types), the MCP catalog, and the CLI all consume them by name, so
+// a silent tag rename here would break them at runtime-distance.
+func TestWAFEventWire(t *testing.T) {
+	b, err := json.Marshal(&WAFEvent{
+		ID:       "01HZZZZZZZZZZZZZZZZZZZZZZZ",
+		At:       time.Date(2026, 7, 10, 12, 34, 56, 0, time.UTC),
+		RuleID:   "abc",
+		Action:   "block",
+		Status:   403,
+		ClientIP: "203.0.113.7",
+		Country:  "TH",
+		ASN:      13335,
+		Method:   "POST",
+		Host:     "app.example.com",
+		Path:     "/wp-login.php",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]json.RawMessage
+	if err := json.Unmarshal(b, &got); err != nil {
+		t.Fatal(err)
+	}
+	for _, k := range []string{"id", "at", "ruleId", "action", "status", "clientIp", "country", "asn", "method", "host", "path"} {
+		if _, ok := got[k]; !ok {
+			t.Fatalf("wire field %q missing (got %s)", k, b)
+		}
+	}
+	if len(got) != 11 {
+		t.Fatalf("unexpected wire fields (got %s)", b)
+	}
+
+	rb, err := json.Marshal(&WAFEventsResult{Next: "01HZZZZZZZZZZZZZZZZZZZZZZZ"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var res map[string]json.RawMessage
+	if err := json.Unmarshal(rb, &res); err != nil {
+		t.Fatal(err)
+	}
+	for _, k := range []string{"items", "next"} {
+		if _, ok := res[k]; !ok {
+			t.Fatalf("result wire field %q missing (got %s)", k, rb)
+		}
+	}
+	if len(res) != 2 {
+		t.Fatalf("unexpected result wire fields (got %s)", rb)
 	}
 }

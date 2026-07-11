@@ -666,11 +666,15 @@ func validWAFEventAction(s string) bool {
 	}
 }
 
-// validWAFEventID reports whether s has the shape of a controller-minted
+// ValidWAFEventID reports whether s has the shape of a controller-minted
 // event id: a 26-character uppercase Crockford-base32 ULID. Case is strict —
 // the server pages with a lexicographic `id < before`, which is only
-// time-ordered over the exact alphabet the engine mints.
-func validWAFEventID(s string) bool {
+// time-ordered over the exact alphabet the engine mints. Exported (like
+// WAFEventIDLength) so the apiserver applies the same shape check to item IDs
+// at ingest (SPEC-waf-events §E.2): an off-alphabet id that got stored would
+// come back as WAFEventsResult.Next and then fail this check as Before,
+// wedging pagination — both ends must enforce the same shape.
+func ValidWAFEventID(s string) bool {
 	if len(s) != WAFEventIDLength {
 		return false
 	}
@@ -688,7 +692,11 @@ func validWAFEventID(s string) bool {
 func (m *WAFEvents) Valid() error {
 	v := validator.New()
 
+	// every filter is trimmed: §G blesses hand-editing query params that map
+	// 1:1 onto these fields, and a copy-pasted value often carries padding
 	m.RuleID = strings.TrimSpace(m.RuleID)
+	m.Action = strings.TrimSpace(m.Action)
+	m.Before = strings.TrimSpace(m.Before)
 
 	v.Must(m.Project != "", "project required")
 	v.Must(m.Location != "", "location required")
@@ -697,7 +705,7 @@ func (m *WAFEvents) Valid() error {
 		v.Mustf(utf8.RuneCountInString(m.RuleID) <= WAFMaxRuleIDLength, "ruleId must not exceed %d characters", WAFMaxRuleIDLength)
 	}
 	v.Must(m.Action == "" || validWAFEventAction(m.Action), "action invalid (want log|allow|block)")
-	v.Must(m.Before == "" || validWAFEventID(m.Before), "before invalid (want an event id)")
+	v.Must(m.Before == "" || ValidWAFEventID(m.Before), "before invalid (want an event id)")
 	v.Mustf(m.Limit >= 0 && m.Limit <= WAFEventsMaxLimit, "limit out of bounds (want 0..%d)", WAFEventsMaxLimit)
 
 	return WrapValidate(v)
