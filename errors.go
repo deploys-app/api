@@ -71,6 +71,7 @@ var (
 	ErrBillingMemberIsOwner             = newError("api: the billing account owner cannot be added as a member")
 	ErrWAFZoneNotFound                  = newError("api: waf zone not found")
 	ErrWAFRuleInvalid                   = newError("api: waf rule invalid")
+	ErrWAFListNotFound                  = newError("api: waf list not found")
 	ErrCacheZoneNotFound                = newError("api: cache zone not found")
 	ErrCacheOverrideInvalid             = newError("api: cache override invalid")
 	ErrTransformZoneNotFound            = newError("api: transform zone not found")

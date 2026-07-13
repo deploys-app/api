@@ -111,6 +111,10 @@ func (c *Client) WAF() api.WAF {
 	return wafClient{c}
 }
 
+func (c *Client) WAFList() api.WAFLists {
+	return wafListClient{c}
+}
+
 func (c *Client) Cache() api.Cache {
 	return cacheClient{c}
 }

@@ -109,6 +109,25 @@ const (
 	WAFTestMaxASN          = 4294967295 // ASNs are 32-bit
 )
 
+// WAF lists
+const (
+	WAFListMaxLists       = 20   // per project
+	WAFListMaxEntries     = 1000 // per list; the expanded-size caps below are the binding constraint for IPv6-heavy lists
+	WAFListMaxEntryLength = 64   // max IPv6 CIDR text is ~43 chars
+
+	// Expanded-size caps: parapet's SetRules enforces no expression length cap;
+	// the real ceilings are cel-go's parser limit (100k codepoints per
+	// expression) and the ~1 MiB ConfigMap object cap — per document: rules
+	// and limits land in two separate ConfigMaps (waf-<pid>/rules.yaml,
+	// ratelimit-<pid>/limits.yaml), so the byte cap applies to each YAML
+	// document independently. Enforced at waf.set and wafList.set against the
+	// expansion of every referencing zone. The entry cap assumes an operator
+	// cost-limit floor of WAF_COST_LIMIT >= 10000 (a max expansion costs ~3k
+	// CEL units; the engine default is 1,000,000).
+	WAFMaxExpandedExpressionLength = 65536  // per rule expression / limit filter, post-expansion
+	WAFMaxExpandedDocumentBytes    = 524288 // per YAML document (rules / limits), post-expansion
+)
+
 // Cache overrides (parapet cacherule)
 const (
 	CacheMaxOverrides = 50
