@@ -21,6 +21,8 @@ type Collector interface {
 	SetCacheOverrideUsage(ctx context.Context, m *CollectorSetCacheOverrideUsage) (*Empty, error)
 	// SetCacheResultUsage requires the location's collector token (internal endpoint authenticated by the per-location collector_token, not a user permission).
 	SetCacheResultUsage(ctx context.Context, m *CollectorSetCacheResultUsage) (*Empty, error)
+	// SetWAFEvents requires the location's collector token (internal endpoint authenticated by the per-location collector_token, not a user permission).
+	SetWAFEvents(ctx context.Context, m *CollectorSetWAFEvents) (*Empty, error)
 }
 
 type CollectorLocation struct {
@@ -171,4 +173,35 @@ type CollectorCacheResultUsageItem struct {
 	Requests  float64 `json:"requests" yaml:"requests"` // request count in the window
 	Bytes     float64 `json:"bytes" yaml:"bytes"`       // bytes served in the window
 	At        int64   `json:"at" yaml:"at"`             // unix second, minute-aligned bucket
+}
+
+// CollectorSetWAFEvents appends sampled WAF match events captured from the
+// controller's event ring (SPEC-waf-events). Items are deduplicated by ID
+// (the controller-minted ULID), so at-least-once shipping after cursor loss
+// is safe. ProjectID is parsed by the collector from the project-prefixed
+// RuleID (<projectID>-<rand>), exactly like CollectorSetWAFUsage; the server
+// re-checks the pairing against the rule-id prefix before storing.
+//
+// Unlike the usage setters this RPC is synchronous server-side: events have
+// no healing second source (usage loops re-query Prometheus, the event ring
+// is drained), so a failed insert must surface as an error and the collector
+// must advance its per-pod ring cursor only after a successful call.
+type CollectorSetWAFEvents struct {
+	Location string                   `json:"location" yaml:"location"`
+	List     []*CollectorWAFEventItem `json:"list" yaml:"list"`
+}
+
+type CollectorWAFEventItem struct {
+	ID        string `json:"id" yaml:"id"` // controller ULID, dedupe key
+	ProjectID int64  `json:"projectId,string" yaml:"projectId"`
+	RuleID    string `json:"ruleId" yaml:"ruleId"` // full generated id (<projectID>-<rand>)
+	Action    string `json:"action" yaml:"action"` // log|allow|block
+	Status    int    `json:"status" yaml:"status"`
+	At        int64  `json:"at" yaml:"at"` // unix second (event time at the engine)
+	ClientIP  string `json:"clientIp" yaml:"clientIp"`
+	Country   string `json:"country" yaml:"country"` // ISO 3166-1 alpha-2, "" if unresolved
+	ASN       int64  `json:"asn" yaml:"asn"`         // 0 if unresolved
+	Method    string `json:"method" yaml:"method"`
+	Host      string `json:"host" yaml:"host"`
+	Path      string `json:"path" yaml:"path"` // URL path only (no query)
 }

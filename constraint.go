@@ -107,6 +107,25 @@ const (
 	WAFTestMaxQueryLength  = 2048
 	WAFTestMaxMethodLength = 16
 	WAFTestMaxASN          = 4294967295 // ASNs are 32-bit
+
+	// WAF events (waf.events / collector.setWAFEvents). Events are sampled at
+	// the engine and retained 3 days; counters stay the source of truth for
+	// counts. The read caps bound a page; the item caps bound what the server
+	// accepts from a collector — the engine truncates only host/path, and an
+	// attacker-chosen method token can be multi-KB, so every string is capped
+	// here independently of engine behavior.
+	WAFEventsDefaultLimit = 50
+	WAFEventsMaxLimit     = 200
+	// WAFEventIDLength is the exact length of a controller-minted event id
+	// (a ULID: 26 chars of Crockford base32, time-ordered).
+	WAFEventIDLength = 26
+	// WAFEventsMaxBatch caps one collector.setWAFEvents call's List.
+	WAFEventsMaxBatch         = 5000
+	WAFEventMaxMethodLength   = 32
+	WAFEventMaxHostLength     = 255
+	WAFEventMaxPathLength     = 200
+	WAFEventMaxClientIPLength = 64
+	WAFEventMaxCountryLength  = 2
 )
 
 // WAF lists

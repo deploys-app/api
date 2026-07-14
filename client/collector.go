@@ -81,3 +81,12 @@ func (c collectorClient) SetCacheResultUsage(ctx context.Context, m *api.Collect
 	}
 	return &res, nil
 }
+
+func (c collectorClient) SetWAFEvents(ctx context.Context, m *api.CollectorSetWAFEvents) (*api.Empty, error) {
+	var res api.Empty
+	err := c.inv.invoke(ctx, "collector.setWAFEvents", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}

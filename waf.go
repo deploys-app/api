@@ -38,6 +38,8 @@ type WAF interface {
 	LimitMetrics(ctx context.Context, m *WAFLimitMetrics) (*WAFLimitMetricsResult, error)
 	// Test requires the `waf.get` permission.
 	Test(ctx context.Context, m *WAFTest) (*WAFTestResult, error)
+	// Events requires the `waf.get` permission.
+	Events(ctx context.Context, m *WAFEvents) (*WAFEventsResult, error)
 }
 
 // WAFRule mirrors parapet's waf.Rule. Expression is a CEL expression returning
@@ -633,4 +635,120 @@ type WAFTestLimitResult struct {
 	// dry run cannot know.
 	Counted bool   `json:"counted" yaml:"counted"`
 	Error   string `json:"error" yaml:"error"`
+}
+
+// WAFEvents reads a zone's recent sampled match events, newest first. Events
+// are SAMPLES (capture caps per controller pod: ≤10/min per rule — blocks
+// exempt — and ≤60/min per zone) retained 3 days; waf.metrics remains the
+// exact count.
+//
+// There is deliberately no time-range filter: the store holds 3 days total,
+// so "everything, newest first, paginated" plus the two filters covers the
+// UI; one can be added compatibly later.
+type WAFEvents struct {
+	Project  string `json:"project" yaml:"project"`
+	Location string `json:"location" yaml:"location"`
+	RuleID   string `json:"ruleId" yaml:"ruleId"` // optional filter, short project-local id
+	Action   string `json:"action" yaml:"action"` // optional filter: log|allow|block
+	Before   string `json:"before" yaml:"before"` // keyset cursor: events with id < before (ULIDs are time-ordered)
+	Limit    int    `json:"limit" yaml:"limit"`   // 0 = 50, max 200
+}
+
+// validWAFEventAction reports whether s names a WAF action an event can carry
+// (the string form of WAFAction; events travel as plain strings because they
+// are read-only rows, not rule config).
+func validWAFEventAction(s string) bool {
+	switch s {
+	case "log", "allow", "block":
+		return true
+	default:
+		return false
+	}
+}
+
+// ValidWAFEventID reports whether s has the shape of a controller-minted
+// event id: a 26-character uppercase Crockford-base32 ULID. Case is strict —
+// the server pages with a lexicographic `id < before`, which is only
+// time-ordered over the exact alphabet the engine mints. Exported (like
+// WAFEventIDLength) so the apiserver applies the same shape check to item IDs
+// at ingest (SPEC-waf-events §E.2): an off-alphabet id that got stored would
+// come back as WAFEventsResult.Next and then fail this check as Before,
+// wedging pagination — both ends must enforce the same shape.
+func ValidWAFEventID(s string) bool {
+	if len(s) != WAFEventIDLength {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		switch c := s[i]; {
+		case c >= '0' && c <= '9':
+		case c >= 'A' && c <= 'Z' && c != 'I' && c != 'L' && c != 'O' && c != 'U':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func (m *WAFEvents) Valid() error {
+	v := validator.New()
+
+	// every filter is trimmed: §G blesses hand-editing query params that map
+	// 1:1 onto these fields, and a copy-pasted value often carries padding
+	m.RuleID = strings.TrimSpace(m.RuleID)
+	m.Action = strings.TrimSpace(m.Action)
+	m.Before = strings.TrimSpace(m.Before)
+
+	v.Must(m.Project != "", "project required")
+	v.Must(m.Location != "", "location required")
+	if m.RuleID != "" {
+		v.Must(ReValidWAFRuleID.MatchString(m.RuleID), "ruleId invalid "+ReValidWAFRuleIDStr)
+		v.Mustf(utf8.RuneCountInString(m.RuleID) <= WAFMaxRuleIDLength, "ruleId must not exceed %d characters", WAFMaxRuleIDLength)
+	}
+	v.Must(m.Action == "" || validWAFEventAction(m.Action), "action invalid (want log|allow|block)")
+	v.Must(m.Before == "" || ValidWAFEventID(m.Before), "before invalid (want an event id)")
+	v.Mustf(m.Limit >= 0 && m.Limit <= WAFEventsMaxLimit, "limit out of bounds (want 0..%d)", WAFEventsMaxLimit)
+
+	return WrapValidate(v)
+}
+
+type WAFEventsResult struct {
+	Items []*WAFEvent `json:"items" yaml:"items"`
+	Next  string      `json:"next" yaml:"next"` // pass as Before for the next page; "" = exhausted
+}
+
+func (m *WAFEventsResult) Table() [][]string {
+	table := [][]string{
+		{"TIME", "ACTION", "RULE", "IP", "COUNTRY", "METHOD", "HOST", "PATH"},
+	}
+	for _, x := range m.Items {
+		table = append(table, []string{
+			x.At.UTC().Format(time.RFC3339),
+			x.Action,
+			x.RuleID,
+			x.ClientIP,
+			x.Country,
+			x.Method,
+			x.Host,
+			x.Path,
+		})
+	}
+	return table
+}
+
+// WAFEvent is one sampled match. RuleID is the short, project-local id,
+// matching WAF.Get so the caller can join an event to its rule — but events
+// outlive rules by up to 3 days (and waf.set regenerates unknown ids), so the
+// id may match nothing in the current ruleset.
+type WAFEvent struct {
+	ID       string    `json:"id" yaml:"id"`
+	At       time.Time `json:"at" yaml:"at"`
+	RuleID   string    `json:"ruleId" yaml:"ruleId"`
+	Action   string    `json:"action" yaml:"action"` // log|allow|block
+	Status   int       `json:"status" yaml:"status"`
+	ClientIP string    `json:"clientIp" yaml:"clientIp"`
+	Country  string    `json:"country" yaml:"country"` // ISO 3166-1 alpha-2, "" if unresolved
+	ASN      int64     `json:"asn" yaml:"asn"`         // 0 if unresolved
+	Method   string    `json:"method" yaml:"method"`
+	Host     string    `json:"host" yaml:"host"`
+	Path     string    `json:"path" yaml:"path"` // URL path only (no query)
 }
