@@ -29,4 +29,5 @@ type Interface interface {
 	GitHub() GitHub
 	Scheduler() Scheduler
 	Notification() Notification
+	Alert() Alert
 }

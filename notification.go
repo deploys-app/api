@@ -211,6 +211,8 @@ func validNotificationEventSegment(s string) bool {
 // historical lowercase workloadidentity); keep in sync with the apiserver
 // recordChange/recordAudit call sites.
 var notificationEvents = []string{
+	"alert.create", "alert.update", "alert.delete",
+	"alert.trigger", "alert.resolve",
 	"cache.set", "cache.delete",
 	"database.create",
 	"deployment.deploy", "deployment.rollback", "deployment.restart",

@@ -134,6 +134,12 @@ var permissions = []string{
 	"notification.delete",
 	"notification.test",
 	"notification.pull",
+	"alert.*",
+	"alert.create",
+	"alert.update",
+	"alert.get",
+	"alert.list",
+	"alert.delete",
 }
 
 func Permissions() []string {

@@ -208,3 +208,29 @@ const (
 	NotificationDefaultPullLimit  = 100
 	NotificationMaxPullLimit      = 1000
 )
+
+// Alert (metric alert rules on platform metrics)
+const (
+	// AlertMaxRules caps how many rules a project may define; server-enforced
+	// at Create.
+	AlertMaxRules = 20
+
+	// AlertForMinutesMin/Max bound how long a condition must hold continuously,
+	// evaluated as a rolling window, before a rule breaches.
+	AlertForMinutesMin = 1
+	AlertForMinutesMax = 60
+
+	// AlertRenotifyMinutesMin/Max bound the periodic re-notification interval
+	// while a rule stays firing; 0 disables re-notification (trigger/resolve
+	// transitions only).
+	AlertRenotifyMinutesMin = 10
+	AlertRenotifyMinutesMax = 1440 // 24h
+
+	// AlertPercentThresholdMax caps Condition.Threshold for percent-unit
+	// metrics (cpu, memory); values above 100 are allowed since a deployment's
+	// limit can be briefly overcommitted.
+	AlertPercentThresholdMax = 1000 // 100% x10 headroom
+
+	AlertEventsDefaultLimit = 50
+	AlertEventsMaxLimit     = 100
+)
