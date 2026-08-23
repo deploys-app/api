@@ -1,6 +1,6 @@
 module github.com/deploys-app/api
 
-go 1.26
+go 1.27.0
 
 require (
 	github.com/acoshift/arpc/v2 v2.2.0
