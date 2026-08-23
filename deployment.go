@@ -835,6 +835,9 @@ type DeploymentMetricsResult struct {
 	MemoryLimit []*DeploymentMetricsLine `json:"memoryLimit" yaml:"memoryLimit"`
 	Requests    []*DeploymentMetricsLine `json:"requests" yaml:"requests"`
 	Egress      []*DeploymentMetricsLine `json:"egress" yaml:"egress"`
+	// Replica is the available replica count (gauge). Empty for types with no
+	// k8s Deployment (Static, CronJob).
+	Replica []*DeploymentMetricsLine `json:"replica" yaml:"replica"`
 	// Storage is the daily static-web storage gauge (bytes); populated only for
 	// Static deployments.
 	Storage []*DeploymentMetricsLine `json:"storage" yaml:"storage"`
