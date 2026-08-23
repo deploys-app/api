@@ -41,8 +41,8 @@ func WrapValidate(v *validator.Validator) error {
 }
 
 func IsValidateError(err error) bool {
-	var e *ValidateError
-	return errors.As(err, &e)
+	_, ok := errors.AsType[*ValidateError](err)
+	return ok
 }
 
 // helper

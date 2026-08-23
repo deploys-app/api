@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -242,9 +243,7 @@ var notificationEvents = []string{
 // "<resource>.*", "*.<action>") are also valid in a subscription but are not
 // listed here; they are formed per IsValidNotificationEvent.
 func NotificationEvents() []string {
-	xs := make([]string, len(notificationEvents))
-	copy(xs, notificationEvents)
-	return xs
+	return slices.Clone(notificationEvents)
 }
 
 type NotificationCreate struct {

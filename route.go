@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"time"
 
@@ -18,9 +19,7 @@ var routeTargetPrefix = []string{
 }
 
 func RouteTargetPrefix() []string {
-	xs := make([]string, len(routeTargetPrefix))
-	copy(xs, routeTargetPrefix)
-	return xs
+	return slices.Clone(routeTargetPrefix)
 }
 
 type Route interface {

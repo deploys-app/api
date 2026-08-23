@@ -366,7 +366,7 @@ func validTransformHeaderName(name string) bool {
 	if name == "" {
 		return false
 	}
-	for i := 0; i < len(name); i++ {
+	for i := range len(name) {
 		switch c := name[i]; {
 		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9':
 		case strings.IndexByte("!#$%&'*+-.^_`|~", c) >= 0:
