@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -136,9 +137,7 @@ var permissions = []string{
 }
 
 func Permissions() []string {
-	xs := make([]string, len(permissions))
-	copy(xs, permissions)
-	return xs
+	return slices.Clone(permissions)
 }
 
 // IsPublicBindablePermission reports whether permission p is safe to grant to a

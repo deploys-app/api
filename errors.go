@@ -3,7 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/acoshift/arpc/v2"
@@ -145,8 +145,8 @@ func (e *DomainInUsedError) Error() string {
 		return "api: domain in used"
 	}
 
-	rs := append([]string(nil), e.Routes...)
-	sort.Strings(rs)
+	rs := slices.Clone(e.Routes)
+	slices.Sort(rs)
 
 	shown := rs
 	if len(shown) > DomainInUsedRouteLimit {
