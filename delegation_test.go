@@ -92,8 +92,8 @@ func TestMeGenerateTokenValid(t *testing.T) {
 		if err := m.Valid(); err != nil {
 			t.Fatalf("Valid() = %v, want nil", err)
 		}
-		if m.TTLSeconds != 900 {
-			t.Errorf("TTLSeconds default = %d, want 900", m.TTLSeconds)
+		if m.TTLSeconds != DefaultGenerateTokenTTLSeconds {
+			t.Errorf("TTLSeconds default = %d, want %d", m.TTLSeconds, DefaultGenerateTokenTTLSeconds)
 		}
 	})
 
@@ -114,6 +114,13 @@ func TestMeGenerateTokenValid(t *testing.T) {
 		}
 	})
 
+	t.Run("accepts ttl at one year", func(t *testing.T) {
+		m := &MeGenerateToken{Project: "acme", Permissions: []string{"deployment.get"}, TTLSeconds: MaxGenerateTokenTTLSeconds}
+		if err := m.Valid(); err != nil {
+			t.Fatalf("Valid() = %v, want nil", err)
+		}
+	})
+
 	invalid := []struct {
 		name string
 		m    *MeGenerateToken
@@ -125,7 +132,7 @@ func TestMeGenerateTokenValid(t *testing.T) {
 		{"serviceaccount key", &MeGenerateToken{Project: "acme", Permissions: []string{"serviceaccount.key.create"}}},
 		{"pullsecret.get", &MeGenerateToken{Project: "acme", Permissions: []string{"pullsecret.get"}}},
 		{"ttl too low", &MeGenerateToken{Project: "acme", Permissions: []string{"deployment.get"}, TTLSeconds: 30}},
-		{"ttl too high", &MeGenerateToken{Project: "acme", Permissions: []string{"deployment.get"}, TTLSeconds: 4000}},
+		{"ttl too high", &MeGenerateToken{Project: "acme", Permissions: []string{"deployment.get"}, TTLSeconds: MaxGenerateTokenTTLSeconds + 1}},
 		{"label too long", &MeGenerateToken{Project: "acme", Permissions: []string{"deployment.get"}, Label: strings.Repeat("a", MaxTokenLabelLength+1)}},
 		{"label bad charset", &MeGenerateToken{Project: "acme", Permissions: []string{"deployment.get"}, Label: "bad\nlabel"}},
 		{"label leading symbol", &MeGenerateToken{Project: "acme", Permissions: []string{"deployment.get"}, Label: ":nope"}},

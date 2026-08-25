@@ -199,10 +199,11 @@ func IsPublicBindablePermission(p string) bool {
 // me.generateToken scope.
 //
 // The minted token is already provably ≤ its minter and project-confined
-// (enforced per-request by the server's iam.Scope), dies on a ≤1h TTL, and is
-// revocable — so containment, not this classifier, is the primary control. The
-// mint handler additionally rejects any permission the caller does not already
-// hold, so this function never needs to re-check "does the caller have it".
+// (enforced per-request by the server's iam.Scope), dies on a caller-chosen TTL
+// of at most one year, and is revocable — so containment, not this classifier,
+// is the primary control. The mint handler additionally rejects any permission
+// the caller does not already hold, so this function never needs to re-check
+// "does the caller have it".
 //
 // This classifier removes only the permissions that break containment *even when
 // the minter holds them*: privilege escalation, minting of credentials that
@@ -215,7 +216,7 @@ func IsPublicBindablePermission(p string) bool {
 // (e.g. a future database.snapshot) becomes delegatable automatically, bounded
 // by containment. That fail-open default for ordinary permissions is acceptable
 // precisely because a delegated permission is one the caller already holds,
-// project-confined, enforced ≤-minter on every call, dead within an hour, and
+// project-confined, enforced ≤-minter on every call, time-bounded, and
 // revocable. (Note: me.* is authentication-only, never a grantable permission,
 // so it cannot appear here; a scoped token is barred from minting/listing/
 // revoking tokens by an iam.IsScoped guard in the handlers, not by this list.)
