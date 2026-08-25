@@ -45,6 +45,13 @@ type Me interface {
 // MaxTokenLabelLength caps the optional attribution label on a generated token.
 const MaxTokenLabelLength = 64
 
+// Generate-token TTL bounds, in seconds. Zero TTLSeconds becomes the default.
+const (
+	DefaultGenerateTokenTTLSeconds = 900
+	MinGenerateTokenTTLSeconds     = 60
+	MaxGenerateTokenTTLSeconds     = 365 * 24 * 60 * 60
+)
+
 // ReValidTokenLabelStr matches an optional token label: a short, printable
 // attribution string (e.g. "claude-code:pr-42"). It is deliberately
 // restrictive — the label is free text used only for attribution/listing, never
@@ -56,11 +63,13 @@ const ReValidTokenLabelStr = `^[A-Za-z0-9][A-Za-z0-9 ._:/-]*$`
 // ReValidTokenLabel validates MeGenerateToken.Label. See ReValidTokenLabelStr.
 var ReValidTokenLabel = regexp.MustCompile(ReValidTokenLabelStr)
 
-// MeGenerateToken requests a scoped, short-lived token. The caller must already
+// MeGenerateToken requests a scoped, time-limited token. The caller must already
 // hold each requested permission on Project, and each must be delegatable
 // (IsDelegatablePermission) — i.e. not a wildcard or a containment-breaking
-// class. TTLSeconds defaults to 900 (15m) and is clamped to [60, 3600]. Label is
-// an optional attribution tag for the agent session (e.g. "claude-code:pr-42").
+// class. TTLSeconds defaults to DefaultGenerateTokenTTLSeconds (15m) and is
+// clamped to [MinGenerateTokenTTLSeconds, MaxGenerateTokenTTLSeconds] (60s–1
+// year). Label is an optional attribution tag for the agent session (e.g.
+// "claude-code:pr-42").
 type MeGenerateToken struct {
 	Project     string   `json:"project" yaml:"project"`
 	Permissions []string `json:"permissions" yaml:"permissions"`
@@ -70,7 +79,7 @@ type MeGenerateToken struct {
 
 func (m *MeGenerateToken) Valid() error {
 	if m.TTLSeconds == 0 {
-		m.TTLSeconds = 900
+		m.TTLSeconds = DefaultGenerateTokenTTLSeconds
 	}
 	m.Label = strings.TrimSpace(m.Label)
 
@@ -81,7 +90,8 @@ func (m *MeGenerateToken) Valid() error {
 		v.Mustf(IsDelegatablePermission(p),
 			"permission %q cannot be delegated to a generated token", p)
 	}
-	v.Must(m.TTLSeconds >= 60 && m.TTLSeconds <= 3600, "ttlSeconds must be between 60 and 3600")
+	v.Mustf(m.TTLSeconds >= MinGenerateTokenTTLSeconds && m.TTLSeconds <= MaxGenerateTokenTTLSeconds,
+		"ttlSeconds must be between %d and %d", MinGenerateTokenTTLSeconds, MaxGenerateTokenTTLSeconds)
 	if m.Label != "" {
 		v.Mustf(utf8.RuneCountInString(m.Label) <= MaxTokenLabelLength, "label must be at most %d characters", MaxTokenLabelLength)
 		v.Must(ReValidTokenLabel.MatchString(m.Label), "label must use letters, numbers, spaces, and ._:/- (starting with a letter or number)")
