@@ -1,6 +1,6 @@
 package api
 
-import "encoding/json"
+import "encoding/json/v2"
 
 //go:generate stringer -type=DomainCertStatus -linecomment
 type DomainCertStatus int
