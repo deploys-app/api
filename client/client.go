@@ -3,7 +3,7 @@ package client
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"io"
 	"net/http"
@@ -185,7 +185,7 @@ func (c *Client) invoke(ctx context.Context, api string, r any, res any) error {
 	}
 
 	var reqBody bytes.Buffer
-	err := json.NewEncoder(&reqBody).Encode(r)
+	err := json.MarshalWrite(&reqBody, r)
 	if err != nil {
 		return err
 	}
@@ -222,7 +222,7 @@ func (c *Client) invoke(ctx context.Context, api string, r any, res any) error {
 	respBody.Result = res
 	respBody.Error = &errMsg
 
-	err = json.NewDecoder(resp.Body).Decode(&respBody)
+	err = json.UnmarshalRead(resp.Body, &respBody)
 	if err != nil {
 		return err
 	}
