@@ -297,11 +297,15 @@ type InvoiceListItem struct {
 	Subtotal      float64   `json:"subtotal" yaml:"subtotal"`
 	TaxAmount     float64   `json:"taxAmount" yaml:"taxAmount"`
 	Total         float64   `json:"total" yaml:"total"`
-	Status        string    `json:"status" yaml:"status"`
-	IssuedAt      time.Time `json:"issuedAt" yaml:"issuedAt"`
-	PaidAt        time.Time `json:"paidAt" yaml:"paidAt"`
-	VoidedAt      time.Time `json:"voidedAt" yaml:"voidedAt"`
-	CreatedAt     time.Time `json:"createdAt" yaml:"createdAt"`
+	// Status is draft, open, pending, paid, or void. pending is a customer-facing
+	// overlay: ListInvoices/GetInvoice return it when the invoice is still open
+	// and a transfer slip is awaiting operator review. The stored invoices.status
+	// stays open until the invoice is paid or voided.
+	Status    string    `json:"status" yaml:"status"`
+	IssuedAt  time.Time `json:"issuedAt" yaml:"issuedAt"`
+	PaidAt    time.Time `json:"paidAt" yaml:"paidAt"`
+	VoidedAt  time.Time `json:"voidedAt" yaml:"voidedAt"`
+	CreatedAt time.Time `json:"createdAt" yaml:"createdAt"`
 }
 
 type InvoiceListResult struct {
@@ -363,10 +367,14 @@ type InvoiceItem struct {
 	TaxRate       float64   `json:"taxRate" yaml:"taxRate"`
 	TaxAmount     float64   `json:"taxAmount" yaml:"taxAmount"`
 	Total         float64   `json:"total" yaml:"total"`
-	Status        string    `json:"status" yaml:"status"`
-	TaxID         string    `json:"taxId" yaml:"taxId"`
-	TaxName       string    `json:"taxName" yaml:"taxName"`
-	TaxAddress    string    `json:"taxAddress" yaml:"taxAddress"`
+	// Status is draft, open, pending, paid, or void. pending is a customer-facing
+	// overlay: GetInvoice returns it when the invoice is still open and a transfer
+	// slip is awaiting operator review. The stored invoices.status stays open until
+	// the invoice is paid or voided.
+	Status     string `json:"status" yaml:"status"`
+	TaxID      string `json:"taxId" yaml:"taxId"`
+	TaxName    string `json:"taxName" yaml:"taxName"`
+	TaxAddress string `json:"taxAddress" yaml:"taxAddress"`
 	// TaxEntityType is the buyer's entity type (individual|company) snapshotted
 	// from the billing account at issue time. A "company" prints the Head Office
 	// (สำนักงานใหญ่) branch designation on the tax document; empty/individual does
