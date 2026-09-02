@@ -209,6 +209,10 @@ type CollectorMetricSource struct {
 type CollectorSetCustomUsage struct {
 	Location string                      `json:"location" yaml:"location"`
 	List     []*CollectorCustomUsageItem `json:"list" yaml:"list"`
+	// SourceID identifies the source when List is empty (a scrape error or a
+	// successful scrape with zero samples). When List is non-empty, each item
+	// carries its own SourceID.
+	SourceID int64 `json:"sourceId,string" yaml:"sourceId"`
 	// Truncated is set by the collector when this scrape hit MetricSourceMaxSeries
 	// and extra series were dropped. Apiserver stores it on the source so the
 	// console can show a banner; the list itself is already capped.
