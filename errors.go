@@ -98,6 +98,9 @@ var (
 	ErrErrorDetectionUnavailable        = newError("api: error detection is not available for this location")
 	ErrErrorIssueNotFound               = newError("api: error issue not found")
 	ErrErrorNotForStatic                = newError("api: no error detection for static deployments")
+	ErrAlertNotFound                    = newError("api: alert not found")
+	ErrAlertAlreadyExists               = newError("api: alert already exists")
+	ErrMaximumAlertRulesReached         = newError("api: maximum alert rules reached")
 )
 
 var AllErrors []error
