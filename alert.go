@@ -1,7 +1,10 @@
 package api
 
 import (
+	"cmp"
 	"context"
+	"math"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -99,25 +102,11 @@ var alertMetrics = []string{
 // the discovery list for a rule-creation UI (mirrors NotificationEvents). The
 // returned slice is a copy.
 func AlertMetrics() []string {
-	xs := make([]string, len(alertMetrics))
-	copy(xs, alertMetrics)
-	return xs
+	return slices.Clone(alertMetrics)
 }
 
-var validAlertMetrics = func() map[string]bool {
-	m := make(map[string]bool, len(alertMetrics))
-	for _, x := range alertMetrics {
-		m[x] = true
-	}
-	return m
-}()
-
-// alertPercentMetrics is the subset of the vocabulary whose Threshold is a
-// percent (0-100, generously capped at AlertPercentThresholdMax) rather than an
-// absolute per-minute rate.
-var alertPercentMetrics = map[string]bool{
-	AlertMetricCPU:    true,
-	AlertMetricMemory: true,
+func alertMetricIsPercent(metric string) bool {
+	return metric == AlertMetricCPU || metric == AlertMetricMemory
 }
 
 // Comparison operators a condition may use.
@@ -125,11 +114,6 @@ const (
 	AlertOpGTE = ">="
 	AlertOpLTE = "<="
 )
-
-var validAlertOps = map[string]bool{
-	AlertOpGTE: true,
-	AlertOpLTE: true,
-}
 
 // Evaluator states (AlertItem.Status). See the Alert doc comment for the
 // breach/nodata/ok decision and the state-machine transitions.
@@ -165,10 +149,11 @@ func validAlertTarget(v *validator.Validator, t AlertTarget) {
 }
 
 func validAlertCondition(v *validator.Validator, c AlertCondition) {
-	v.Must(validAlertMetrics[c.Metric], "condition.metric invalid (want cpu, memory, requests, or egress)")
-	v.Must(validAlertOps[c.Op], "condition.op invalid (want >= or <=)")
+	v.Must(slices.Contains(alertMetrics, c.Metric), "condition.metric invalid (want cpu, memory, requests, or egress)")
+	v.Must(c.Op == AlertOpGTE || c.Op == AlertOpLTE, "condition.op invalid (want >= or <=)")
 	v.Must(c.Threshold > 0, "condition.threshold must be greater than 0")
-	if alertPercentMetrics[c.Metric] {
+	v.Must(!math.IsInf(c.Threshold, 0), "condition.threshold must be finite")
+	if alertMetricIsPercent(c.Metric) {
 		v.Mustf(c.Threshold <= AlertPercentThresholdMax, "condition.threshold must not exceed %v for percent metrics", AlertPercentThresholdMax)
 	}
 	v.Mustf(c.ForMinutes >= AlertForMinutesMin && c.ForMinutes <= AlertForMinutesMax, "condition.forMinutes must be between %d and %d", AlertForMinutesMin, AlertForMinutesMax)
@@ -197,10 +182,7 @@ func (m *AlertCreate) Valid() error {
 	m.Target.Location = strings.TrimSpace(m.Target.Location)
 	m.Target.Deployment = strings.TrimSpace(m.Target.Deployment)
 	m.Condition.Metric = strings.TrimSpace(m.Condition.Metric)
-	m.Condition.Op = strings.TrimSpace(m.Condition.Op)
-	if m.Condition.Op == "" {
-		m.Condition.Op = AlertOpGTE
-	}
+	m.Condition.Op = cmp.Or(strings.TrimSpace(m.Condition.Op), AlertOpGTE)
 
 	v := validator.New()
 	v.Must(m.Project != "", "project required")
@@ -230,10 +212,7 @@ func (m *AlertUpdate) Valid() error {
 	m.Target.Location = strings.TrimSpace(m.Target.Location)
 	m.Target.Deployment = strings.TrimSpace(m.Target.Deployment)
 	m.Condition.Metric = strings.TrimSpace(m.Condition.Metric)
-	m.Condition.Op = strings.TrimSpace(m.Condition.Op)
-	if m.Condition.Op == "" {
-		m.Condition.Op = AlertOpGTE
-	}
+	m.Condition.Op = cmp.Or(strings.TrimSpace(m.Condition.Op), AlertOpGTE)
 
 	v := validator.New()
 	v.Must(m.Project != "", "project required")
@@ -300,9 +279,7 @@ func (m *AlertEvents) Valid() error {
 	if m.Limit <= 0 {
 		m.Limit = AlertEventsDefaultLimit
 	}
-	if m.Limit > AlertEventsMaxLimit {
-		m.Limit = AlertEventsMaxLimit
-	}
+	m.Limit = min(m.Limit, AlertEventsMaxLimit)
 	return nil
 }
 
@@ -342,12 +319,22 @@ func alertValueString(v *float64) string {
 	return strconv.FormatFloat(*v, 'f', 2, 64)
 }
 
+func alertStatus(x *AlertItem) string {
+	if x.Disabled {
+		return "disabled"
+	}
+	if x.Status == "" {
+		return "-"
+	}
+	return x.Status
+}
+
 func alertRow(x *AlertItem) []string {
 	return []string{
 		x.Name,
 		alertTargetString(x.Target),
 		alertConditionString(x.Condition),
-		x.Status,
+		alertStatus(x),
 		alertValueString(x.LastValue),
 		age(x.CreatedAt),
 	}

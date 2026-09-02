@@ -1,6 +1,8 @@
 package api
 
 import (
+	"math"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -17,14 +19,7 @@ func TestAlertMetrics(t *testing.T) {
 	}
 
 	for _, want := range []string{AlertMetricCPU, AlertMetricMemory, AlertMetricRequests, AlertMetricEgress} {
-		found := false
-		for _, m := range AlertMetrics() {
-			if m == want {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if !slices.Contains(AlertMetrics(), want) {
 			t.Fatalf("vocabulary is missing %q", want)
 		}
 	}
@@ -106,6 +101,10 @@ func TestAlertCreateValid(t *testing.T) {
 		{"forMinutes too large", func(m *AlertCreate) { m.Condition.ForMinutes = AlertForMinutesMax + 1 }, "condition.forMinutes"},
 		{"renotifyMinutes too small", func(m *AlertCreate) { m.RenotifyMinutes = 1 }, "renotifyMinutes"},
 		{"renotifyMinutes too large", func(m *AlertCreate) { m.RenotifyMinutes = AlertRenotifyMinutesMax + 1 }, "renotifyMinutes"},
+		{"infinite threshold", func(m *AlertCreate) {
+			m.Condition.Metric = AlertMetricRequests
+			m.Condition.Threshold = math.Inf(1)
+		}, "must be finite"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -213,13 +212,18 @@ func TestAlertEventsValidLimitClamp(t *testing.T) {
 
 func TestAlertEventsInCatalog(t *testing.T) {
 	events := NotificationEvents()
-	seen := map[string]bool{}
-	for _, e := range events {
-		seen[e] = true
-	}
 	for _, want := range []string{"alert.create", "alert.update", "alert.delete", "alert.trigger", "alert.resolve"} {
-		if !seen[want] {
+		if !slices.Contains(events, want) {
 			t.Fatalf("notification event catalog is missing %q", want)
+		}
+	}
+}
+
+func TestAlertPermissionsInCatalog(t *testing.T) {
+	perms := Permissions()
+	for _, want := range []string{"alert.*", "alert.create", "alert.update", "alert.get", "alert.list", "alert.delete"} {
+		if !slices.Contains(perms, want) {
+			t.Fatalf("permission catalog is missing %q", want)
 		}
 	}
 }
@@ -246,5 +250,16 @@ func TestAlertDelegatable(t *testing.T) {
 	}
 	if IsDelegatablePermission("alert.*") {
 		t.Fatal("alert.* must not be delegatable (wildcard)")
+	}
+}
+
+func TestAlertItemTableDisabled(t *testing.T) {
+	m := &AlertItem{Name: "cpu-hot", Status: AlertStatusFiring, Disabled: true}
+	if got := alertStatus(m); got != "disabled" {
+		t.Fatalf("disabled rule status = %q, want disabled", got)
+	}
+	m.Disabled = false
+	if got := alertStatus(m); got != AlertStatusFiring {
+		t.Fatalf("enabled firing rule status = %q, want %q", got, AlertStatusFiring)
 	}
 }
