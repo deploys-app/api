@@ -44,7 +44,7 @@ func TestCollectorSetCustomUsageValid(t *testing.T) {
 	withItems := &CollectorSetCustomUsage{
 		Location: "gke.cluster-rcf2",
 		List: []*CollectorCustomUsageItem{
-			{ProjectID: 1, SourceID: 2, Series: "queue_depth", Value: 3, At: 4},
+			{ProjectID: 1, SourceID: 2, Series: "jobs_total", Type: MetricSourceSeriesTypeCounter, Value: 3, At: 4},
 		},
 	}
 	if err := withItems.Valid(); err != nil {

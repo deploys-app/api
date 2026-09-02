@@ -7,6 +7,28 @@ import (
 	"testing"
 )
 
+func TestMetricSourceSeriesType(t *testing.T) {
+	if got := MetricSourceSeriesType(MetricSourceSeriesTypeCounter); got != MetricSourceSeriesTypeCounter {
+		t.Fatalf("counter = %q", got)
+	}
+	if got := MetricSourceSeriesType(""); got != MetricSourceSeriesTypeUntyped {
+		t.Fatalf("empty = %q, want untyped", got)
+	}
+	if got := MetricSourceSeriesType("histogram"); got != MetricSourceSeriesTypeUntyped {
+		t.Fatalf("unknown = %q, want untyped", got)
+	}
+}
+
+func TestCollectorCustomUsageItemHasType(t *testing.T) {
+	f, ok := reflect.TypeFor[CollectorCustomUsageItem]().FieldByName("Type")
+	if !ok {
+		t.Fatal("CollectorCustomUsageItem.Type missing — ingest cannot persist gauge/counter")
+	}
+	if f.Type.Kind() != reflect.String {
+		t.Fatalf("Type field is %s, want string", f.Type)
+	}
+}
+
 func validMetricSourceSet() *MetricSourceSet {
 	return &MetricSourceSet{
 		Project:    "p",

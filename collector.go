@@ -232,6 +232,7 @@ type CollectorCustomUsageItem struct {
 	ProjectID int64   `json:"projectId,string" yaml:"projectId"`
 	SourceID  int64   `json:"sourceId,string" yaml:"sourceId"`
 	Series    string  `json:"series" yaml:"series"` // name{sortedLabels}
+	Type      string  `json:"type" yaml:"type"`     // gauge|counter|untyped; empty → untyped
 	Value     float64 `json:"value" yaml:"value"`
 	At        int64   `json:"at" yaml:"at"`
 }

@@ -52,6 +52,16 @@ const (
 	MetricSourceSeriesTypeUntyped = "untyped"
 )
 
+// MetricSourceSeriesType returns a stored series type, or untyped for empty/unknown.
+func MetricSourceSeriesType(s string) string {
+	switch s {
+	case MetricSourceSeriesTypeGauge, MetricSourceSeriesTypeCounter, MetricSourceSeriesTypeUntyped:
+		return s
+	default:
+		return MetricSourceSeriesTypeUntyped
+	}
+}
+
 // Query time-range vocabulary: the waf/cache short windows (not deployment
 // 1hagg). Required on MetricSourceQuery.
 const (
