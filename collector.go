@@ -209,6 +209,13 @@ type CollectorMetricSource struct {
 type CollectorSetCustomUsage struct {
 	Location string                      `json:"location" yaml:"location"`
 	List     []*CollectorCustomUsageItem `json:"list" yaml:"list"`
+	// Truncated is set by the collector when this scrape hit MetricSourceMaxSeries
+	// and extra series were dropped. Apiserver stores it on the source so the
+	// console can show a banner; the list itself is already capped.
+	Truncated bool `json:"truncated" yaml:"truncated"`
+	// LastError is a scrape failure message. Empty on a successful scrape
+	// (including zero samples). Apiserver stores it on the source.
+	LastError string `json:"lastError" yaml:"lastError"`
 }
 
 func (m *CollectorSetCustomUsage) Valid() error {

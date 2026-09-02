@@ -55,4 +55,13 @@ func TestCollectorSetCustomUsageValid(t *testing.T) {
 	if err := missing.Valid(); err == nil || !strings.Contains(err.Error(), "location required") {
 		t.Fatalf("expected location required, got: %v", err)
 	}
+
+	flagged := &CollectorSetCustomUsage{
+		Location:  "gke.cluster-rcf2",
+		Truncated: true,
+		LastError: "timeout",
+	}
+	if err := flagged.Valid(); err != nil {
+		t.Fatalf("truncated/error report was rejected: %v", err)
+	}
 }
