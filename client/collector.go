@@ -81,3 +81,21 @@ func (c collectorClient) SetCacheResultUsage(ctx context.Context, m *api.Collect
 	}
 	return &res, nil
 }
+
+func (c collectorClient) ListMetricSources(ctx context.Context, m *api.CollectorListMetricSources) (*api.CollectorListMetricSourcesResult, error) {
+	var res api.CollectorListMetricSourcesResult
+	err := c.inv.invoke(ctx, "collector.listMetricSources", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c collectorClient) SetCustomUsage(ctx context.Context, m *api.CollectorSetCustomUsage) (*api.Empty, error) {
+	var res api.Empty
+	err := c.inv.invoke(ctx, "collector.setCustomUsage", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}

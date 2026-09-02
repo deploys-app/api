@@ -30,4 +30,5 @@ type Interface interface {
 	Scheduler() Scheduler
 	Notification() Notification
 	Alert() Alert
+	MetricSource() MetricSource
 }

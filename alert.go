@@ -15,22 +15,24 @@ import (
 
 // Alert manages a project's metric alert rules: "when deployment CPU >= 90% for
 // 10 minutes, notify." A rule is a single condition on one metric of one
-// deployment; the target carries the location (like Notification carries its
-// delivery config), so a rule is addressed by (project, name) like an env group
-// or a scheduler job — location-less at the resource level, location-bound only
-// inside Target.
+// target — either a platform deployment metric (kind=deployment, the default
+// when Kind is empty) or a custom metric-source series (kind=custom). The
+// resource is addressed by (project, name) like an env group or a scheduler
+// job — location-less at the resource level. For kind=deployment, location
+// lives on Target; for kind=custom, location lives on the metric source.
 //
 // Rules are evaluated by an apiserver cron tick (outside this package) against
-// the existing per-minute deployment_usages table; there is no separate metrics
-// backend for v1. Evaluation is stateless per tick over a rolling window of the
-// last Condition.ForMinutes buckets, and produces one of three states: "ok"
-// (condition not met), "firing" (condition held for the full window), or
-// "nodata" (too few buckets present — deployment paused/deleted, or no limit
-// set for a percent metric). State transitions (ok/nodata -> firing, firing ->
-// ok) enqueue "alert.trigger"/"alert.resolve" notification events (see
-// Notification); a still-firing rule re-notifies every RenotifyMinutes when
-// set. Notification delivery reuses the notification-channels feature
-// entirely — a rule carries no delivery config of its own.
+// the existing per-minute deployment_usages table (kind=deployment) or
+// custom_usages (kind=custom). Evaluation is stateless per tick over a rolling
+// window of the last Condition.ForMinutes buckets, and produces one of three
+// states: "ok" (condition not met), "firing" (condition held for the full
+// window), or "nodata" (too few buckets present — deployment paused/deleted,
+// source gone, or no limit set for a percent metric). State transitions
+// (ok/nodata -> firing, firing -> ok) enqueue "alert.trigger"/"alert.resolve"
+// notification events (see Notification); a still-firing rule re-notifies
+// every RenotifyMinutes when set. Notification delivery reuses the
+// notification-channels feature entirely — a rule carries no delivery config
+// of its own.
 //
 // Rule config changes (Create/Update/Delete) go through the normal audit/change
 // path like every other resource, so a channel subscribed to "alert.*" also
@@ -38,10 +40,10 @@ import (
 // transitions themselves are evaluator telemetry, not user actions, and are not
 // audited (mirrors deployment.health).
 //
-// Existence of Target.Deployment is checked at Create/Update time but a rule is
-// not FK-bound to it: deleting and recreating the deployment keeps the rule,
-// which simply reports "nodata" while the deployment is gone (matches how
-// routes behave).
+// Existence of Target.Deployment (kind=deployment) or Target.Source
+// (kind=custom) is checked at Create/Update time but a rule is not FK-bound
+// to it: deleting the target keeps the rule, which simply reports "nodata"
+// while the target is gone (matches how routes behave).
 type Alert interface {
 	// Create requires the `alert.create` permission.
 	Create(ctx context.Context, m *AlertCreate) (*Empty, error)
@@ -59,22 +61,31 @@ type Alert interface {
 	Events(ctx context.Context, m *AlertEvents) (*AlertEventsResult, error)
 }
 
-// AlertTarget identifies what a rule watches. Location is required in v1
-// (kind=deployment is implicit; Phase 2 adds a Kind field for custom-metric
-// targets, which is why Condition/Target are kept flat and additive rather than
-// nested further).
+// AlertTarget identifies what a rule watches. Empty Kind is treated as
+// deployment (clients need not send "deployment"). kind=custom targets a
+// metricSource series; location lives on the source, so Location and
+// Deployment must be empty.
 type AlertTarget struct {
-	Location   string `json:"location" yaml:"location"`
-	Deployment string `json:"deployment" yaml:"deployment"`
+	Kind       string `json:"kind" yaml:"kind"`             // "" or "deployment" or "custom"
+	Location   string `json:"location" yaml:"location"`     // kind=deployment
+	Deployment string `json:"deployment" yaml:"deployment"` // kind=deployment
+	Source     string `json:"source" yaml:"source"`         // kind=custom: metricSource name
+	Series     string `json:"series" yaml:"series"`         // kind=custom: exact series key
 }
+
+const (
+	AlertTargetKindDeployment = "deployment" // default when Kind is empty
+	AlertTargetKindCustom     = "custom"
+)
 
 // AlertCondition is the single metric condition a rule evaluates. Op defaults
 // to ">=" when left empty. Threshold's unit depends on Metric (see
-// AlertMetrics): percent 0-100 for cpu/memory (usage as a share of the
-// deployment's limit, allowed above 100% since limits can be briefly
-// overcommitted), req/min for requests, or bytes/min for egress. ForMinutes is
-// how long the condition must hold continuously, evaluated as a rolling
-// window (1..60 minutes).
+// AlertMetrics / AlertCustomMetrics): percent 0-100 for cpu/memory (usage as
+// a share of the deployment's limit, allowed above 100% since limits can be
+// briefly overcommitted), req/min for requests, bytes/min for egress, the
+// gauge value for kind=custom Metric=value, or per-minute increase for
+// kind=custom Metric=rate. ForMinutes is how long the condition must hold
+// continuously, evaluated as a rolling window (1..60 minutes).
 type AlertCondition struct {
 	Metric     string  `json:"metric" yaml:"metric"`
 	Op         string  `json:"op" yaml:"op"` // ">=" or "<="; default ">=" on empty
@@ -82,13 +93,19 @@ type AlertCondition struct {
 	ForMinutes int     `json:"forMinutes" yaml:"forMinutes"`
 }
 
-// Metric vocabulary (v1). See the SPEC for the backing deployment_usages series
-// and bucket aggregation each metric uses.
+// Platform metric vocabulary (kind=deployment). See the SPEC for the backing
+// deployment_usages series and bucket aggregation each metric uses.
 const (
 	AlertMetricCPU      = "cpu"      // % of limit, avg across pods
 	AlertMetricMemory   = "memory"   // % of limit, avg across pods
 	AlertMetricRequests = "requests" // req/min, summed across pods
 	AlertMetricEgress   = "egress"   // bytes/min, summed across pods
+)
+
+// Custom metric vocabulary (kind=custom).
+const (
+	AlertMetricValue = "value" // gauge, kind=custom
+	AlertMetricRate  = "rate"  // counter per-minute, kind=custom
 )
 
 var alertMetrics = []string{
@@ -98,11 +115,23 @@ var alertMetrics = []string{
 	AlertMetricEgress,
 }
 
-// AlertMetrics returns the v1 metric vocabulary a Condition.Metric may target —
-// the discovery list for a rule-creation UI (mirrors NotificationEvents). The
-// returned slice is a copy.
+var alertCustomMetrics = []string{
+	AlertMetricValue,
+	AlertMetricRate,
+}
+
+// AlertMetrics returns the platform (kind=deployment) metric vocabulary a
+// Condition.Metric may target — the discovery list for a rule-creation UI
+// (mirrors NotificationEvents). The returned slice is a copy.
 func AlertMetrics() []string {
 	return slices.Clone(alertMetrics)
+}
+
+// AlertCustomMetrics returns the kind=custom metric vocabulary a
+// Condition.Metric may target (value = gauge, rate = counter per-minute).
+// The returned slice is a copy.
+func AlertCustomMetrics() []string {
+	return slices.Clone(alertCustomMetrics)
 }
 
 func alertMetricIsPercent(metric string) bool {
@@ -138,18 +167,43 @@ func validAlertName(v *validator.Validator, name string) {
 	v.Mustf(cnt >= MinNameLength && cnt <= MaxNameLength, "name must have length between %d-%d characters", MinNameLength, MaxNameLength)
 }
 
-// validAlertTarget checks Target's shape only; whether Location/Deployment
-// actually resolve to an existing deployment is a server-side lookup (see the
-// Alert doc comment), not client-side validation.
-func validAlertTarget(v *validator.Validator, t AlertTarget) {
-	v.Must(t.Location != "", "target.location required")
-	v.Must(ReValidName.MatchString(t.Deployment), "target.deployment invalid: "+ReValidNameDesc)
-	cnt := utf8.RuneCountInString(t.Deployment)
-	v.Mustf(cnt >= MinNameLength && cnt <= DeploymentMaxNameLength, "target.deployment must have length between %d-%d characters", MinNameLength, DeploymentMaxNameLength)
+func alertTargetKind(kind string) string {
+	return cmp.Or(kind, AlertTargetKindDeployment)
 }
 
-func validAlertCondition(v *validator.Validator, c AlertCondition) {
-	v.Must(slices.Contains(alertMetrics, c.Metric), "condition.metric invalid (want cpu, memory, requests, or egress)")
+// validAlertTarget checks Target's shape only; whether Location/Deployment
+// (or Source) actually resolve is a server-side lookup (see the Alert doc
+// comment), not client-side validation. Empty Kind is treated as deployment
+// and is not rewritten on the struct.
+func validAlertTarget(v *validator.Validator, t AlertTarget) {
+	switch alertTargetKind(t.Kind) {
+	case AlertTargetKindDeployment:
+		v.Must(t.Location != "", "target.location required")
+		v.Must(ReValidName.MatchString(t.Deployment), "target.deployment invalid: "+ReValidNameDesc)
+		cnt := utf8.RuneCountInString(t.Deployment)
+		v.Mustf(cnt >= MinNameLength && cnt <= DeploymentMaxNameLength, "target.deployment must have length between %d-%d characters", MinNameLength, DeploymentMaxNameLength)
+		v.Must(t.Source == "", "target.source is only valid for kind=custom")
+		v.Must(t.Series == "", "target.series is only valid for kind=custom")
+	case AlertTargetKindCustom:
+		v.Must(t.Location == "", "target.location is only valid for kind=deployment")
+		v.Must(t.Deployment == "", "target.deployment is only valid for kind=deployment")
+		v.Must(ReValidName.MatchString(t.Source), "target.source invalid: "+ReValidNameDesc)
+		cnt := utf8.RuneCountInString(t.Source)
+		v.Mustf(cnt >= MinNameLength && cnt <= MaxNameLength, "target.source must have length between %d-%d characters", MinNameLength, MaxNameLength)
+		v.Must(t.Series != "", "target.series required")
+		v.Mustf(utf8.RuneCountInString(t.Series) <= MetricSourceMaxSeriesKey, "target.series must not exceed %d characters", MetricSourceMaxSeriesKey)
+	default:
+		v.Must(false, "target.kind invalid (want deployment or custom)")
+	}
+}
+
+func validAlertCondition(v *validator.Validator, kind string, c AlertCondition) {
+	switch alertTargetKind(kind) {
+	case AlertTargetKindCustom:
+		v.Must(slices.Contains(alertCustomMetrics, c.Metric), "condition.metric invalid (want value or rate)")
+	default:
+		v.Must(slices.Contains(alertMetrics, c.Metric), "condition.metric invalid (want cpu, memory, requests, or egress)")
+	}
 	v.Must(c.Op == AlertOpGTE || c.Op == AlertOpLTE, "condition.op invalid (want >= or <=)")
 	v.Must(c.Threshold > 0, "condition.threshold must be greater than 0")
 	v.Must(!math.IsInf(c.Threshold, 0), "condition.threshold must be finite")
@@ -179,8 +233,11 @@ type AlertCreate struct {
 
 func (m *AlertCreate) Valid() error {
 	m.Name = strings.TrimSpace(m.Name)
+	m.Target.Kind = strings.TrimSpace(m.Target.Kind)
 	m.Target.Location = strings.TrimSpace(m.Target.Location)
 	m.Target.Deployment = strings.TrimSpace(m.Target.Deployment)
+	m.Target.Source = strings.TrimSpace(m.Target.Source)
+	m.Target.Series = strings.TrimSpace(m.Target.Series)
 	m.Condition.Metric = strings.TrimSpace(m.Condition.Metric)
 	m.Condition.Op = cmp.Or(strings.TrimSpace(m.Condition.Op), AlertOpGTE)
 
@@ -188,7 +245,7 @@ func (m *AlertCreate) Valid() error {
 	v.Must(m.Project != "", "project required")
 	validAlertName(v, m.Name)
 	validAlertTarget(v, m.Target)
-	validAlertCondition(v, m.Condition)
+	validAlertCondition(v, m.Target.Kind, m.Condition)
 	validAlertRenotifyMinutes(v, m.RenotifyMinutes)
 
 	return WrapValidate(v)
@@ -209,8 +266,11 @@ type AlertUpdate struct {
 
 func (m *AlertUpdate) Valid() error {
 	m.Name = strings.TrimSpace(m.Name)
+	m.Target.Kind = strings.TrimSpace(m.Target.Kind)
 	m.Target.Location = strings.TrimSpace(m.Target.Location)
 	m.Target.Deployment = strings.TrimSpace(m.Target.Deployment)
+	m.Target.Source = strings.TrimSpace(m.Target.Source)
+	m.Target.Series = strings.TrimSpace(m.Target.Series)
 	m.Condition.Metric = strings.TrimSpace(m.Condition.Metric)
 	m.Condition.Op = cmp.Or(strings.TrimSpace(m.Condition.Op), AlertOpGTE)
 
@@ -218,7 +278,7 @@ func (m *AlertUpdate) Valid() error {
 	v.Must(m.Project != "", "project required")
 	validAlertName(v, m.Name)
 	validAlertTarget(v, m.Target)
-	validAlertCondition(v, m.Condition)
+	validAlertCondition(v, m.Target.Kind, m.Condition)
 	validAlertRenotifyMinutes(v, m.RenotifyMinutes)
 
 	return WrapValidate(v)
@@ -305,6 +365,9 @@ type AlertItem struct {
 }
 
 func alertTargetString(t AlertTarget) string {
+	if alertTargetKind(t.Kind) == AlertTargetKindCustom {
+		return "custom/" + t.Source + "/" + t.Series
+	}
 	return t.Location + "/" + t.Deployment
 }
 

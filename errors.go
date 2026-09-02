@@ -101,6 +101,8 @@ var (
 	ErrAlertNotFound                    = newError("api: alert not found")
 	ErrAlertAlreadyExists               = newError("api: alert already exists")
 	ErrMaximumAlertRulesReached         = newError("api: maximum alert rules reached")
+	ErrMetricSourceNotFound             = newError("api: metric source not found")
+	ErrMaximumMetricSourcesReached      = newError("api: maximum metric sources reached")
 )
 
 var AllErrors []error

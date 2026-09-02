@@ -183,6 +183,10 @@ func (c *Client) Alert() api.Alert {
 	return alertClient{c}
 }
 
+func (c *Client) MetricSource() api.MetricSource {
+	return metricSourceClient{c}
+}
+
 func (c *Client) invoke(ctx context.Context, api string, r any, res any) error {
 	if err := validRequest(r); err != nil {
 		return err
