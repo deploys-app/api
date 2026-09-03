@@ -25,6 +25,23 @@ func TestAlertMetrics(t *testing.T) {
 	}
 }
 
+func TestAlertCustomMetrics(t *testing.T) {
+	metrics := AlertCustomMetrics()
+	if len(metrics) == 0 {
+		t.Fatal("the custom metric vocabulary must not be empty")
+	}
+	metrics[0] = "mutated"
+	if AlertCustomMetrics()[0] == "mutated" {
+		t.Fatal("AlertCustomMetrics must return a copy")
+	}
+
+	for _, want := range []string{AlertMetricValue, AlertMetricRate} {
+		if !slices.Contains(AlertCustomMetrics(), want) {
+			t.Fatalf("custom vocabulary is missing %q", want)
+		}
+	}
+}
+
 func validAlertCreate() *AlertCreate {
 	return &AlertCreate{
 		Project: "p",
@@ -40,8 +57,18 @@ func validAlertCreate() *AlertCreate {
 }
 
 func TestAlertCreateValid(t *testing.T) {
-	if err := validAlertCreate().Valid(); err != nil {
+	ok := validAlertCreate()
+	if err := ok.Valid(); err != nil {
 		t.Fatalf("a valid create was rejected: %v", err)
+	}
+	if ok.Target.Kind != "" {
+		t.Fatalf("Valid must not rewrite empty Kind, got %q", ok.Target.Kind)
+	}
+
+	explicit := validAlertCreate()
+	explicit.Target.Kind = AlertTargetKindDeployment
+	if err := explicit.Valid(); err != nil {
+		t.Fatalf("kind=deployment was rejected: %v", err)
 	}
 
 	// op defaults to >= when left empty.
@@ -105,6 +132,8 @@ func TestAlertCreateValid(t *testing.T) {
 			m.Condition.Metric = AlertMetricRequests
 			m.Condition.Threshold = math.Inf(1)
 		}, "must be finite"},
+		{"deployment with source", func(m *AlertCreate) { m.Target.Source = "web" }, "target.source"},
+		{"deployment metric value", func(m *AlertCreate) { m.Condition.Metric = AlertMetricValue }, "condition.metric invalid"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -132,6 +161,78 @@ func TestAlertCreateNonPercentMetricAllowsLargeThreshold(t *testing.T) {
 	}
 }
 
+func validAlertCreateCustom() *AlertCreate {
+	return &AlertCreate{
+		Project: "p",
+		Name:    "queue-hot",
+		Target: AlertTarget{
+			Kind:   AlertTargetKindCustom,
+			Source: "web",
+			Series: `queue_depth{queue="email"}`,
+		},
+		Condition: AlertCondition{
+			Metric:     AlertMetricValue,
+			Op:         AlertOpGTE,
+			Threshold:  100,
+			ForMinutes: 10,
+		},
+	}
+}
+
+func TestAlertCreateCustomValid(t *testing.T) {
+	if err := validAlertCreateCustom().Valid(); err != nil {
+		t.Fatalf("a valid custom create was rejected: %v", err)
+	}
+
+	rate := validAlertCreateCustom()
+	rate.Condition.Metric = AlertMetricRate
+	if err := rate.Valid(); err != nil {
+		t.Fatalf("custom rate was rejected: %v", err)
+	}
+
+	large := validAlertCreateCustom()
+	large.Condition.Threshold = AlertPercentThresholdMax + 1
+	if err := large.Valid(); err != nil {
+		t.Fatalf("a large custom value threshold was rejected: %v", err)
+	}
+
+	cases := []struct {
+		name   string
+		mutate func(*AlertCreate)
+		want   string
+	}{
+		{"custom with deployment", func(m *AlertCreate) { m.Target.Deployment = "web" }, "target.deployment"},
+		{"custom with location", func(m *AlertCreate) { m.Target.Location = "gke.cluster-rcf2" }, "target.location"},
+		{"custom metric cpu", func(m *AlertCreate) { m.Condition.Metric = AlertMetricCPU }, "condition.metric invalid"},
+		{"custom missing series", func(m *AlertCreate) { m.Target.Series = "" }, "target.series required"},
+		{"custom missing source", func(m *AlertCreate) { m.Target.Source = "" }, "target.source invalid"},
+		{"unknown kind", func(m *AlertCreate) { m.Target.Kind = "disk" }, "target.kind invalid"},
+		{"infinite threshold", func(m *AlertCreate) { m.Condition.Threshold = math.Inf(1) }, "must be finite"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := validAlertCreateCustom()
+			tc.mutate(m)
+			err := m.Valid()
+			if err == nil {
+				t.Fatalf("expected a validation error for %s, got nil", tc.name)
+			}
+			if !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("expected error to contain %q, got: %v", tc.want, err)
+			}
+		})
+	}
+}
+
+func TestAlertTargetString(t *testing.T) {
+	if got := alertTargetString(AlertTarget{Location: "loc", Deployment: "web"}); got != "loc/web" {
+		t.Fatalf("deployment target = %q, want loc/web", got)
+	}
+	if got := alertTargetString(AlertTarget{Kind: AlertTargetKindCustom, Source: "web", Series: "queue_depth"}); got != "custom/web/queue_depth" {
+		t.Fatalf("custom target = %q, want custom/web/queue_depth", got)
+	}
+}
+
 func TestAlertUpdateValid(t *testing.T) {
 	m := &AlertUpdate{
 		Project: "p",
@@ -153,6 +254,24 @@ func TestAlertUpdateValid(t *testing.T) {
 	bad := &AlertUpdate{Project: "p", Name: "cpu-hot"}
 	if err := bad.Valid(); err == nil {
 		t.Fatal("expected an incomplete update to be rejected")
+	}
+
+	custom := &AlertUpdate{
+		Project: "p",
+		Name:    "queue-hot",
+		Target: AlertTarget{
+			Kind:   AlertTargetKindCustom,
+			Source: "web",
+			Series: "queue_depth",
+		},
+		Condition: AlertCondition{
+			Metric:     AlertMetricValue,
+			Threshold:  10,
+			ForMinutes: 5,
+		},
+	}
+	if err := custom.Valid(); err != nil {
+		t.Fatalf("a valid custom update was rejected: %v", err)
 	}
 }
 

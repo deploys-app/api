@@ -224,6 +224,7 @@ var notificationEvents = []string{
 	"error.detected",
 	"githubInstallation.create",
 	"githubRepo.link", "githubRepo.update", "githubRepo.unlink",
+	"metricSource.set", "metricSource.delete",
 	"notification.create", "notification.update", "notification.delete",
 	"project.create", "project.update", "project.delete",
 	"pullSecret.create", "pullSecret.delete",

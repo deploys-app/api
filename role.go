@@ -140,6 +140,11 @@ var permissions = []string{
 	"alert.get",
 	"alert.list",
 	"alert.delete",
+	"metricSource.*",
+	"metricSource.set",
+	"metricSource.get",
+	"metricSource.list",
+	"metricSource.delete",
 }
 
 func Permissions() []string {

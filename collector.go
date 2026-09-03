@@ -2,6 +2,8 @@ package api
 
 import (
 	"context"
+
+	"github.com/moonrhythm/validator"
 )
 
 type Collector interface {
@@ -21,6 +23,10 @@ type Collector interface {
 	SetCacheOverrideUsage(ctx context.Context, m *CollectorSetCacheOverrideUsage) (*Empty, error)
 	// SetCacheResultUsage requires the location's collector token (internal endpoint authenticated by the per-location collector_token, not a user permission).
 	SetCacheResultUsage(ctx context.Context, m *CollectorSetCacheResultUsage) (*Empty, error)
+	// ListMetricSources requires the location's collector token (internal endpoint authenticated by the per-location collector_token, not a user permission).
+	ListMetricSources(ctx context.Context, m *CollectorListMetricSources) (*CollectorListMetricSourcesResult, error)
+	// SetCustomUsage requires the location's collector token (internal endpoint authenticated by the per-location collector_token, not a user permission).
+	SetCustomUsage(ctx context.Context, m *CollectorSetCustomUsage) (*Empty, error)
 }
 
 type CollectorLocation struct {
@@ -171,4 +177,62 @@ type CollectorCacheResultUsageItem struct {
 	Requests  float64 `json:"requests" yaml:"requests"` // request count in the window
 	Bytes     float64 `json:"bytes" yaml:"bytes"`       // bytes served in the window
 	At        int64   `json:"at" yaml:"at"`             // unix second, minute-aligned bucket
+}
+
+// CollectorListMetricSources lists enabled custom-metric scrape sources for a
+// location. The request has no URL field: scrape URLs are filled by apiserver
+// from (deployment, port, path); callers cannot supply a scrape URL.
+type CollectorListMetricSources struct {
+	Location string `json:"location" yaml:"location"`
+}
+
+func (m *CollectorListMetricSources) Valid() error {
+	v := validator.New()
+	v.Must(m.Location != "", "location required")
+	return WrapValidate(v)
+}
+
+type CollectorListMetricSourcesResult struct {
+	Items []*CollectorMetricSource `json:"items" yaml:"items"`
+}
+
+// CollectorMetricSource is one scrape target. URL is filled by apiserver from
+// (deployment, port, path); callers cannot supply a scrape URL. The resolved
+// form is http://<kubeName>.<ns>:port/path.
+type CollectorMetricSource struct {
+	ProjectID int64  `json:"projectId,string" yaml:"projectId"`
+	SourceID  int64  `json:"sourceId,string" yaml:"sourceId"`
+	Name      string `json:"name" yaml:"name"`
+	URL       string `json:"url" yaml:"url"`
+}
+
+type CollectorSetCustomUsage struct {
+	Location string                      `json:"location" yaml:"location"`
+	List     []*CollectorCustomUsageItem `json:"list" yaml:"list"`
+	// SourceID identifies the source when List is empty (a scrape error or a
+	// successful scrape with zero samples). When List is non-empty, each item
+	// carries its own SourceID.
+	SourceID int64 `json:"sourceId,string" yaml:"sourceId"`
+	// Truncated is set by the collector when this scrape hit MetricSourceMaxSeries
+	// and extra series were dropped. Apiserver stores it on the source so the
+	// console can show a banner; the list itself is already capped.
+	Truncated bool `json:"truncated" yaml:"truncated"`
+	// LastError is a scrape failure message. Empty on a successful scrape
+	// (including zero samples). Apiserver stores it on the source.
+	LastError string `json:"lastError" yaml:"lastError"`
+}
+
+func (m *CollectorSetCustomUsage) Valid() error {
+	v := validator.New()
+	v.Must(m.Location != "", "location required")
+	return WrapValidate(v)
+}
+
+type CollectorCustomUsageItem struct {
+	ProjectID int64   `json:"projectId,string" yaml:"projectId"`
+	SourceID  int64   `json:"sourceId,string" yaml:"sourceId"`
+	Series    string  `json:"series" yaml:"series"` // name{sortedLabels}
+	Type      string  `json:"type" yaml:"type"`     // gauge|counter|untyped; empty → untyped
+	Value     float64 `json:"value" yaml:"value"`
+	At        int64   `json:"at" yaml:"at"`
 }

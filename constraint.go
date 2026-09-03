@@ -234,3 +234,27 @@ const (
 	AlertEventsDefaultLimit = 50
 	AlertEventsMaxLimit     = 100
 )
+
+// MetricSource (Prometheus scrape sources on a project's own deployments)
+const (
+	// MetricSourceMaxPerProject caps how many scrape sources a project may
+	// define; server-enforced at Set of a new name.
+	MetricSourceMaxPerProject = 4
+
+	// MetricSourceMaxSeries caps how many series are stored per source;
+	// ingest drops new series beyond this and marks the source truncated.
+	MetricSourceMaxSeries = 100
+
+	// MetricSourceMaxPath caps MetricSourceSet.Path.
+	MetricSourceMaxPath = 256
+
+	// MetricSourceMaxSeriesKey caps a series identity string (name{sortedLabels}).
+	MetricSourceMaxSeriesKey = 512
+
+	// MetricSourceScrapeTimeout is the collector scrape timeout; documented
+	// here so apiserver and collector share the bound.
+	MetricSourceScrapeTimeout = 5 * time.Second
+
+	// MetricSourceMaxBodyBytes caps the scrape response body (1 MiB).
+	MetricSourceMaxBodyBytes = 1 << 20
+)
