@@ -98,7 +98,7 @@ type DomainItem struct {
 	// show how long a cert has been issuing and warn as it nears the reclaim
 	// window. Cleared once the cert issues (created) or is torn down.
 	CertStatus       DomainCertStatus `json:"certStatus" yaml:"certStatus"`
-	CertPendingSince time.Time        `json:"certPendingSince,omitempty" yaml:"certPendingSince,omitempty"`
+	CertPendingSince time.Time        `json:"certPendingSince,omitzero" yaml:"certPendingSince,omitempty"`
 	CreatedAt        time.Time        `json:"createdAt" yaml:"createdAt"`
 	CreatedBy        string           `json:"createdBy" yaml:"createdBy"`
 }
@@ -114,8 +114,8 @@ type DomainVerification struct {
 // location's load balancer (directly or via a proxy with a matching ownership
 // TXT). LastCheckedAt is the most recent attempt.
 type DomainVerificationDNS struct {
-	VerifiedAt    time.Time `json:"verifiedAt,omitempty"`
-	LastCheckedAt time.Time `json:"lastCheckedAt,omitempty"`
+	VerifiedAt    time.Time `json:"verifiedAt,omitzero"`
+	LastCheckedAt time.Time `json:"lastCheckedAt,omitzero"`
 	Errors        []string  `json:"errors,omitempty"`
 }
 

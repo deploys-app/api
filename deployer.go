@@ -22,26 +22,26 @@ type DeployerIsDomainActive struct {
 type GetCommandsResult []*DeployerCommandItem
 
 type DeployerCommandItem struct {
-	PullSecretCreate       *DeployerCommandPullSecretCreate       `json:"pullSecretCreate,omitempty"`
-	PullSecretDelete       *DeployerCommandMetadata               `json:"pullSecretDelete,omitempty"`
-	WorkloadIdentityCreate *DeployerCommandWorkloadIdentityCreate `json:"workloadIdentityCreate,omitempty"`
-	WorkloadIdentityDelete *DeployerCommandMetadata               `json:"workloadIdentityDelete,omitempty"`
-	DiskCreate             *DeployerCommandDiskCreate             `json:"diskCreate,omitempty"`
-	DiskDelete             *DeployerCommandMetadata               `json:"diskDelete,omitempty"`
-	DeploymentDeploy       *DeployerCommandDeploymentDeploy       `json:"deploymentDeploy,omitempty"`
-	DeploymentDelete       *DeployerCommandDeploymentMetadata     `json:"deploymentDelete,omitempty"`
-	DeploymentPause        *DeployerCommandDeploymentMetadata     `json:"deploymentPause,omitempty"`
-	DeploymentCleanup      *DeployerCommandDeploymentMetadata     `json:"deploymentCleanup,omitempty"`
-	RouteCreate            *DeployerCommandRouteCreate            `json:"routeCreate,omitempty"`
-	RouteDelete            *DeployerCommandRouteDelete            `json:"routeDelete,omitempty"`
-	DomainCertCreate       *DeployerCommandDomainCertCreate       `json:"domainCertCreate,omitempty"`
-	DomainCertDelete       *DeployerCommandDomainCertDelete       `json:"domainCertDelete,omitempty"`
-	WAFSet                 *DeployerCommandWAFSet                 `json:"wafSet,omitempty"`
-	WAFDelete              *DeployerCommandWAFDelete              `json:"wafDelete,omitempty"`
-	CacheSet               *DeployerCommandCacheSet               `json:"cacheSet,omitempty"`
-	CacheDelete            *DeployerCommandCacheDelete            `json:"cacheDelete,omitempty"`
-	TransformSet           *DeployerCommandTransformSet           `json:"transformSet,omitempty"`
-	TransformDelete        *DeployerCommandTransformDelete        `json:"transformDelete,omitempty"`
+	PullSecretCreate       *DeployerCommandPullSecretCreate       `json:"pullSecretCreate,omitzero"`
+	PullSecretDelete       *DeployerCommandMetadata               `json:"pullSecretDelete,omitzero"`
+	WorkloadIdentityCreate *DeployerCommandWorkloadIdentityCreate `json:"workloadIdentityCreate,omitzero"`
+	WorkloadIdentityDelete *DeployerCommandMetadata               `json:"workloadIdentityDelete,omitzero"`
+	DiskCreate             *DeployerCommandDiskCreate             `json:"diskCreate,omitzero"`
+	DiskDelete             *DeployerCommandMetadata               `json:"diskDelete,omitzero"`
+	DeploymentDeploy       *DeployerCommandDeploymentDeploy       `json:"deploymentDeploy,omitzero"`
+	DeploymentDelete       *DeployerCommandDeploymentMetadata     `json:"deploymentDelete,omitzero"`
+	DeploymentPause        *DeployerCommandDeploymentMetadata     `json:"deploymentPause,omitzero"`
+	DeploymentCleanup      *DeployerCommandDeploymentMetadata     `json:"deploymentCleanup,omitzero"`
+	RouteCreate            *DeployerCommandRouteCreate            `json:"routeCreate,omitzero"`
+	RouteDelete            *DeployerCommandRouteDelete            `json:"routeDelete,omitzero"`
+	DomainCertCreate       *DeployerCommandDomainCertCreate       `json:"domainCertCreate,omitzero"`
+	DomainCertDelete       *DeployerCommandDomainCertDelete       `json:"domainCertDelete,omitzero"`
+	WAFSet                 *DeployerCommandWAFSet                 `json:"wafSet,omitzero"`
+	WAFDelete              *DeployerCommandWAFDelete              `json:"wafDelete,omitzero"`
+	CacheSet               *DeployerCommandCacheSet               `json:"cacheSet,omitzero"`
+	CacheDelete            *DeployerCommandCacheDelete            `json:"cacheDelete,omitzero"`
+	TransformSet           *DeployerCommandTransformSet           `json:"transformSet,omitzero"`
+	TransformDelete        *DeployerCommandTransformDelete        `json:"transformDelete,omitzero"`
 }
 
 type DeployerCommandMetadata struct {
@@ -302,26 +302,26 @@ type DeployerCommandTransformDelete struct {
 type DeployerSetResult []*DeployerSetResultItem
 
 type DeployerSetResultItem struct {
-	PullSecretCreate       *DeployerSetResultItemGeneral    `json:"pullSecretCreate,omitempty"`
-	PullSecretDelete       *DeployerSetResultItemGeneral    `json:"pullSecretDelete,omitempty"`
-	WorkloadIdentityCreate *DeployerSetResultItemGeneral    `json:"workloadIdentityCreate,omitempty"`
-	WorkloadIdentityDelete *DeployerSetResultItemGeneral    `json:"workloadIdentityDelete,omitempty"`
-	DiskCreate             *DeployerSetResultItemGeneral    `json:"diskCreate,omitempty"`
-	DiskDelete             *DeployerSetResultItemGeneral    `json:"diskDelete,omitempty"`
-	DeploymentDeploy       *DeployerSetResultItemDeploy     `json:"deploymentDeploy,omitempty"`
-	DeploymentDelete       *DeployerSetResultItemGeneral    `json:"deploymentDelete,omitempty"`
-	DeploymentPause        *DeployerSetResultItemDeployment `json:"deploymentPause,omitempty"`
-	DeploymentCleanup      *DeployerSetResultItemDeployment `json:"deploymentCleanup,omitempty"`
-	RouteCreate            *DeployerSetResultItemGeneral    `json:"routeCreate,omitempty"`
-	RouteDelete            *DeployerSetResultItemGeneral    `json:"routeDelete,omitempty"`
-	DomainCertCreate       *DeployerSetResultItemDomainCert `json:"domainCertCreate,omitempty"`
-	DomainCertDelete       *DeployerSetResultItemGeneral    `json:"domainCertDelete,omitempty"`
-	WAFSet                 *DeployerSetResultItemGeneral    `json:"wafSet,omitempty"`
-	WAFDelete              *DeployerSetResultItemGeneral    `json:"wafDelete,omitempty"`
-	CacheSet               *DeployerSetResultItemGeneral    `json:"cacheSet,omitempty"`
-	CacheDelete            *DeployerSetResultItemGeneral    `json:"cacheDelete,omitempty"`
-	TransformSet           *DeployerSetResultItemGeneral    `json:"transformSet,omitempty"`
-	TransformDelete        *DeployerSetResultItemGeneral    `json:"transformDelete,omitempty"`
+	PullSecretCreate       *DeployerSetResultItemGeneral    `json:"pullSecretCreate,omitzero"`
+	PullSecretDelete       *DeployerSetResultItemGeneral    `json:"pullSecretDelete,omitzero"`
+	WorkloadIdentityCreate *DeployerSetResultItemGeneral    `json:"workloadIdentityCreate,omitzero"`
+	WorkloadIdentityDelete *DeployerSetResultItemGeneral    `json:"workloadIdentityDelete,omitzero"`
+	DiskCreate             *DeployerSetResultItemGeneral    `json:"diskCreate,omitzero"`
+	DiskDelete             *DeployerSetResultItemGeneral    `json:"diskDelete,omitzero"`
+	DeploymentDeploy       *DeployerSetResultItemDeploy     `json:"deploymentDeploy,omitzero"`
+	DeploymentDelete       *DeployerSetResultItemGeneral    `json:"deploymentDelete,omitzero"`
+	DeploymentPause        *DeployerSetResultItemDeployment `json:"deploymentPause,omitzero"`
+	DeploymentCleanup      *DeployerSetResultItemDeployment `json:"deploymentCleanup,omitzero"`
+	RouteCreate            *DeployerSetResultItemGeneral    `json:"routeCreate,omitzero"`
+	RouteDelete            *DeployerSetResultItemGeneral    `json:"routeDelete,omitzero"`
+	DomainCertCreate       *DeployerSetResultItemDomainCert `json:"domainCertCreate,omitzero"`
+	DomainCertDelete       *DeployerSetResultItemGeneral    `json:"domainCertDelete,omitzero"`
+	WAFSet                 *DeployerSetResultItemGeneral    `json:"wafSet,omitzero"`
+	WAFDelete              *DeployerSetResultItemGeneral    `json:"wafDelete,omitzero"`
+	CacheSet               *DeployerSetResultItemGeneral    `json:"cacheSet,omitzero"`
+	CacheDelete            *DeployerSetResultItemGeneral    `json:"cacheDelete,omitzero"`
+	TransformSet           *DeployerSetResultItemGeneral    `json:"transformSet,omitzero"`
+	TransformDelete        *DeployerSetResultItemGeneral    `json:"transformDelete,omitzero"`
 }
 
 type DeployerSetResultItemGeneral struct {
@@ -338,14 +338,14 @@ type DeployerSetResultItemGeneral struct {
 // historical behavior), so the gate is correct regardless of deploy order.
 type DeployerSetResultItemDomainCert struct {
 	ID    int64 `json:"id"`
-	Ready *bool `json:"ready,omitempty"`
+	Ready *bool `json:"ready,omitzero"`
 }
 
 type DeployerSetResultItemDeploy struct {
 	ID       int64 `json:"id"`
 	Revision int64 `json:"revision"`
 	Success  bool  `json:"success"`
-	NodePort *int  `json:"nodePort,omitempty"`
+	NodePort *int  `json:"nodePort,omitzero"`
 }
 
 type DeployerSetResultItemDeployment struct {
