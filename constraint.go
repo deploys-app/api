@@ -107,6 +107,17 @@ const (
 	WAFTestMaxQueryLength  = 2048
 	WAFTestMaxMethodLength = 16
 	WAFTestMaxASN          = 4294967295 // ASNs are 32-bit
+
+	// Managed rules (OWASP CRS via the parapet Coraza engine).
+	// WAFManagedMaxExcludedRules bounds excludedRules; the id bounds restrict
+	// exclusion to the CRS detection rules — below the floor sit the platform
+	// SecActions (900000/900110, whose removal would strip the paranoia/
+	// threshold setvars themselves) and the CRS setup (901xxx); at and above
+	// the ceiling sits the anomaly scoring/blocking machinery (949110 etc.),
+	// whose "exclusion" would be a confusing way to spell enabled:false.
+	WAFManagedMaxExcludedRules  = 50
+	WAFManagedExcludedRuleIDMin = 911100
+	WAFManagedExcludedRuleIDMax = 948999
 )
 
 // WAF lists
