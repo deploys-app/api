@@ -515,6 +515,7 @@ type DeploymentListItem struct {
 	Project            string             `json:"project" yaml:"project"`
 	Location           string             `json:"location" yaml:"location"`
 	Name               string             `json:"name" yaml:"name"`
+	ID                 int64              `json:"id,string" yaml:"id"` // numeric id; JSON string so clients keep the full int64. k8s name is "d"+id
 	Type               DeploymentType     `json:"type" yaml:"type"`
 	Revision           int64              `json:"revision" yaml:"revision"`
 	Image              string             `json:"image" yaml:"image"`
@@ -543,6 +544,7 @@ type DeploymentItem struct {
 	Project            string                  `json:"project" yaml:"project"`
 	Location           string                  `json:"location" yaml:"location"`
 	Name               string                  `json:"name" yaml:"name"`
+	ID                 int64                   `json:"id,string" yaml:"id"` // numeric id; JSON string so clients keep the full int64. k8s name is "d"+id
 	Type               DeploymentType          `json:"type" yaml:"type"`
 	Revision           int64                   `json:"revision" yaml:"revision"`
 	Image              string                  `json:"image" yaml:"image"`
