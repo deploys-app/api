@@ -5,7 +5,8 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"io"
 	"io/fs"
@@ -88,8 +89,8 @@ func (r *SitePublishResult) Table() [][]string {
 
 // siteManifestEntry / siteManifest mirror the apiserver's release manifest JSON
 // shape. The release-sha the server content-addresses against is sha256 of the
-// exact manifest bytes we PUT; encoding/json sorts map keys, so the bytes are
-// deterministic for a given input.
+// exact manifest bytes we PUT; Marshal uses json.Deterministic so map keys are
+// sorted and the bytes are stable for a given input.
 type siteManifestEntry struct {
 	Blob  string `json:"blob"`
 	CT    string `json:"ct"`
@@ -259,7 +260,7 @@ func (c *Client) PublishSite(ctx context.Context, opts *SitePublishOptions) (*Si
 		SPA:         opts.SPA,
 		NotFound:    opts.NotFound,
 		Files:       files,
-	})
+	}, json.Deterministic(true))
 	if err != nil {
 		return nil, fmt.Errorf("site: encode manifest: %w", err)
 	}
@@ -321,8 +322,8 @@ func (c *Client) siteDo(ctx context.Context, method, p string, q url.Values, bod
 	// failures; other guard failures (bad session, sha mismatch) return a
 	// plain-text body via http.Error.
 	var env struct {
-		OK     bool            `json:"ok"`
-		Result json.RawMessage `json:"result"`
+		OK     bool           `json:"ok"`
+		Result jsontext.Value `json:"result"`
 		Error  struct {
 			Message string `json:"message"`
 		} `json:"error"`

@@ -1,7 +1,7 @@
 package api
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 )
 
 //go:generate stringer -type=Action -linecomment

@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
@@ -79,7 +79,7 @@ func (c *Client) NotificationPullStream(ctx context.Context, m *api.Notification
 	}
 
 	var body bytes.Buffer
-	if err := json.NewEncoder(&body).Encode(m); err != nil {
+	if err := json.MarshalWrite(&body, m); err != nil {
 		return err
 	}
 

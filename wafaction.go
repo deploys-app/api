@@ -1,6 +1,6 @@
 package api
 
-import "encoding/json"
+import "encoding/json/v2"
 
 //go:generate stringer -type=WAFAction -linecomment
 type WAFAction int

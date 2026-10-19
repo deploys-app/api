@@ -141,7 +141,7 @@ func (m *RegistryGetProjectStorage) Valid() error {
 
 type RegistryProjectStorage struct {
 	Size      int64      `json:"size" yaml:"size"`
-	UpdatedAt *time.Time `json:"updatedAt,omitempty" yaml:"updatedAt,omitempty"`
+	UpdatedAt *time.Time `json:"updatedAt,omitzero" yaml:"updatedAt,omitempty"`
 }
 
 type RegistryDelete struct {
