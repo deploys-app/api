@@ -30,6 +30,8 @@ type Project interface {
 	StorageMetrics(ctx context.Context, m *ProjectStorageMetrics) (*ProjectStorageMetricsResult, error)
 	// Metrics requires the `project.get` permission.
 	Metrics(ctx context.Context, m *ProjectMetrics) (*ProjectMetricsResult, error)
+	// MetricsByDeployment requires the `project.get` permission.
+	MetricsByDeployment(ctx context.Context, m *ProjectMetricsByDeployment) (*ProjectMetricsByDeploymentResult, error)
 }
 
 type ProjectCreate struct {
@@ -241,5 +243,40 @@ type ProjectMetricsResult struct {
 	Egress        []*UsageMetricsLine `json:"egress" yaml:"egress"`
 	CacheEgress   []*UsageMetricsLine `json:"cacheEgress" yaml:"cacheEgress"`
 	Replica       []*UsageMetricsLine `json:"replica" yaml:"replica"`
+	StaticStorage []*UsageMetricsLine `json:"staticStorage" yaml:"staticStorage"`
+}
+
+// ProjectMetricsByDeployment requests daily usage series grouped by deployment.
+// timeRange is 7d or 30d: per-deployment samples are retained for 30 days.
+type ProjectMetricsByDeployment struct {
+	Project   string                `json:"project" yaml:"project"`
+	TimeRange UsageMetricsTimeRange `json:"timeRange" yaml:"timeRange"`
+}
+
+func (m *ProjectMetricsByDeployment) Valid() error {
+	if m.Project == "" {
+		return newError("project required")
+	}
+	if m.TimeRange == "" {
+		m.TimeRange = UsageMetricsTimeRange30d
+	}
+	switch m.TimeRange {
+	case UsageMetricsTimeRange7d, UsageMetricsTimeRange30d:
+	default:
+		return newError("timeRange invalid")
+	}
+	return nil
+}
+
+// ProjectMetricsByDeploymentResult is one line per current deployment. CPUUsage
+// and Memory are the day's average level summed across the deployment's pods
+// (vCPU, allocated bytes). Egress and Requests are the day's totals. StaticStorage
+// is the day's per-site gauge. Disk, replicas, cache egress, and WAF egress are
+// not recorded per deployment, so they are absent here.
+type ProjectMetricsByDeploymentResult struct {
+	CPUUsage      []*UsageMetricsLine `json:"cpuUsage" yaml:"cpuUsage"`
+	Memory        []*UsageMetricsLine `json:"memory" yaml:"memory"`
+	Egress        []*UsageMetricsLine `json:"egress" yaml:"egress"`
+	Requests      []*UsageMetricsLine `json:"requests" yaml:"requests"`
 	StaticStorage []*UsageMetricsLine `json:"staticStorage" yaml:"staticStorage"`
 }

@@ -81,3 +81,12 @@ func (c projectClient) Metrics(ctx context.Context, m *api.ProjectMetrics) (*api
 	}
 	return &res, nil
 }
+
+func (c projectClient) MetricsByDeployment(ctx context.Context, m *api.ProjectMetricsByDeployment) (*api.ProjectMetricsByDeploymentResult, error) {
+	var res api.ProjectMetricsByDeploymentResult
+	err := c.inv.invoke(ctx, "project.metricsByDeployment", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
