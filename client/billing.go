@@ -141,6 +141,15 @@ func (c billingClient) ListProjects(ctx context.Context, m *api.BillingProjectLi
 	return &res, nil
 }
 
+func (c billingClient) UnlinkProject(ctx context.Context, m *api.BillingUnlinkProject) (*api.Empty, error) {
+	var res api.Empty
+	err := c.inv.invoke(ctx, "billing.unlinkProject", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 func (c billingClient) ListMembers(ctx context.Context, m *api.BillingMemberList) (*api.BillingMemberListResult, error) {
 	var res api.BillingMemberListResult
 	err := c.inv.invoke(ctx, "billing.listMembers", m, &res)
