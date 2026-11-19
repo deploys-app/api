@@ -132,6 +132,15 @@ func (c billingClient) UploadWHTCertificate(_ context.Context, _ *api.InvoiceUpl
 	return nil, nil
 }
 
+func (c billingClient) ListProjects(ctx context.Context, m *api.BillingProjectList) (*api.BillingProjectListResult, error) {
+	var res api.BillingProjectListResult
+	err := c.inv.invoke(ctx, "billing.listProjects", m, &res)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 func (c billingClient) ListMembers(ctx context.Context, m *api.BillingMemberList) (*api.BillingMemberListResult, error) {
 	var res api.BillingMemberListResult
 	err := c.inv.invoke(ctx, "billing.listMembers", m, &res)

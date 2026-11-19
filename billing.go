@@ -25,6 +25,12 @@ type Billing interface {
 	Update(ctx context.Context, m *BillingUpdate) (*Empty, error)
 	// Report requires ownership of the billing account (the caller must be its owner).
 	Report(ctx context.Context, m *BillingReport) (*BillingReportResult, error)
+	// ListProjects lists the projects currently attached to a billing account.
+	// Soft-deleted projects are omitted. Any member of the account may call it
+	// (owner, admin, or accountant): seeing which projects an account pays for
+	// is part of reading the bill, and does not require membership in those
+	// projects. A caller who is not a member gets ErrBillingAccountNotFound.
+	ListProjects(ctx context.Context, m *BillingProjectList) (*BillingProjectListResult, error)
 	// SKUs requires no authentication (public static price list).
 	SKUs(ctx context.Context, m *Empty) (*BillingSKUs, error)
 	// Project requires the `project.get` permission.
@@ -270,6 +276,35 @@ type BillingProject struct {
 
 type BillingProjectResult struct {
 	Price float64 `json:"price" yaml:"price"`
+}
+
+// BillingProjectList lists the projects attached to one billing account.
+// ID is the billing account id, the same field billing.get uses.
+type BillingProjectList struct {
+	ID int64 `json:"id,string" yaml:"id"`
+}
+
+func (m *BillingProjectList) Valid() error {
+	v := validator.New()
+
+	v.Must(m.ID > 0, "id required")
+
+	return WrapValidate(v)
+}
+
+// BillingProjectListItem is a project attached to a billing account. It is
+// smaller than ProjectItem on purpose: a billing member may not hold
+// project.get, so quota and config stay off this response.
+type BillingProjectListItem struct {
+	ID int64 `json:"id,string" yaml:"id"`
+	// Project is the project's sid.
+	Project   string    `json:"project" yaml:"project"`
+	Name      string    `json:"name" yaml:"name"`
+	CreatedAt time.Time `json:"createdAt" yaml:"createdAt"`
+}
+
+type BillingProjectListResult struct {
+	Items []*BillingProjectListItem `json:"items" yaml:"items"`
 }
 
 type InvoiceList struct {
