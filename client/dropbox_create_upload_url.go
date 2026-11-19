@@ -3,7 +3,7 @@ package client
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"io"
 	"net/http"
@@ -32,10 +32,10 @@ type DropboxCreateUploadURLOptions struct {
 	Project     string `json:"project" yaml:"project"`                   // project sid the upload is authorized and billed against
 	Filename    string `json:"filename,omitempty" yaml:"filename"`       // optional filename recorded in Content-Disposition for downloads
 	ContentType string `json:"contentType,omitempty" yaml:"contentType"` // optional; when set, the PUT must send this exact Content-Type
-	MinSize     int64  `json:"minSize,omitempty" yaml:"minSize"`         // optional min bytes; the server floors it at 1 so empty uploads are refused
-	MaxSize     int64  `json:"maxSize,omitempty" yaml:"maxSize"`         // optional max bytes; the server clamps to its cap (default 5 GiB)
-	TTLDays     int    `json:"ttl,omitempty" yaml:"ttl"`                 // download lifetime in days, 1-7; 0 -> server default 1
-	Expires     int    `json:"expires,omitempty" yaml:"expires"`         // upload-URL validity in seconds, 1-3600; 0 -> server default 900
+	MinSize     int64  `json:"minSize,omitzero" yaml:"minSize"`          // optional min bytes; the server floors it at 1 so empty uploads are refused
+	MaxSize     int64  `json:"maxSize,omitzero" yaml:"maxSize"`          // optional max bytes; the server clamps to its cap (default 5 GiB)
+	TTLDays     int    `json:"ttl,omitzero" yaml:"ttl"`                  // download lifetime in days, 1-7; 0 -> server default 1
+	Expires     int    `json:"expires,omitzero" yaml:"expires"`          // upload-URL validity in seconds, 1-3600; 0 -> server default 900
 	Endpoint    string `json:"-" yaml:"-"`                               // optional dropbox base URL override; empty -> DefaultDropboxEndpoint
 }
 
@@ -86,10 +86,10 @@ func (c *Client) DropboxCreateUploadURL(ctx context.Context, opts *DropboxCreate
 		Project     string `json:"project"`
 		Filename    string `json:"filename,omitempty"`
 		ContentType string `json:"contentType,omitempty"`
-		MinSize     int64  `json:"minSize,omitempty"`
-		MaxSize     int64  `json:"maxSize,omitempty"`
-		TTL         int    `json:"ttl,omitempty"`
-		Expires     int    `json:"expires,omitempty"`
+		MinSize     int64  `json:"minSize,omitzero"`
+		MaxSize     int64  `json:"maxSize,omitzero"`
+		TTL         int    `json:"ttl,omitzero"`
+		Expires     int    `json:"expires,omitzero"`
 	}{
 		Project:     opts.Project,
 		Filename:    opts.Filename,

@@ -293,7 +293,7 @@ type GitHubLinkItem struct {
 	CreatedBy           string        `json:"createdBy" yaml:"createdBy"`
 	// WorkflowConfig is the console's saved workflow-generator inputs for this
 	// link, so the generator can pre-fill them. nil when never saved.
-	WorkflowConfig *GitHubWorkflowConfig `json:"workflowConfig,omitempty" yaml:"workflowConfig,omitempty"`
+	WorkflowConfig *GitHubWorkflowConfig `json:"workflowConfig,omitzero" yaml:"workflowConfig,omitempty"`
 }
 
 type GitHubListResult struct {

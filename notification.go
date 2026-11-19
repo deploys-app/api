@@ -72,11 +72,11 @@ type Notification interface {
 // PullTTLSeconds sets how long the channel survives without a Pull before it is
 // auto-deleted (0 = server default). PullTTLSeconds is ignored for push channels.
 type NotificationConfig struct {
-	Type               string `json:"type" yaml:"type"`                                         // webhook|discord|pull
-	URL                string `json:"url" yaml:"url"`                                           // delivery target (empty for pull; on Update empty keeps stored; Discord token redacted in responses)
-	Secret             string `json:"secret,omitempty" yaml:"secret,omitempty"`                 // write-only signing key
-	InsecureSkipVerify bool   `json:"insecureSkipVerify" yaml:"insecureSkipVerify"`             // skip TLS verify
-	PullTTLSeconds     int    `json:"pullTtlSeconds,omitempty" yaml:"pullTtlSeconds,omitempty"` // pull only; 0 = server default
+	Type               string `json:"type" yaml:"type"`                                        // webhook|discord|pull
+	URL                string `json:"url" yaml:"url"`                                          // delivery target (empty for pull; on Update empty keeps stored; Discord token redacted in responses)
+	Secret             string `json:"secret,omitempty" yaml:"secret,omitempty"`                // write-only signing key
+	InsecureSkipVerify bool   `json:"insecureSkipVerify" yaml:"insecureSkipVerify"`            // skip TLS verify
+	PullTTLSeconds     int    `json:"pullTtlSeconds,omitzero" yaml:"pullTtlSeconds,omitempty"` // pull only; 0 = server default
 }
 
 // NotificationSubscription filters which changes a channel receives. A change is
