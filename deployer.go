@@ -226,6 +226,11 @@ type DeployerCommandDomainCertDelete struct {
 // zone) bound via the parapet.moonrhythm.io/ratelimit-zone annotation. An
 // empty Limits removes that ConfigMap and annotation, so the parapet
 // controller drops the zone entirely instead of keeping an empty set.
+//
+// ManagedRules materializes the same way again into a parapet Coraza zone
+// ConfigMap (name = CorazaZoneID, labeled parapet.moonrhythm.io/coraza: zone)
+// holding the generated SecLang document, bound via the
+// parapet.moonrhythm.io/coraza-zone annotation.
 type DeployerCommandWAFSet struct {
 	ID              int64      `json:"id"`
 	ProjectID       int64      `json:"projectId"`
@@ -233,16 +238,28 @@ type DeployerCommandWAFSet struct {
 	RateLimitZoneID string     `json:"rateLimitZoneId"`
 	Rules           []WAFRule  `json:"rules"`
 	Limits          []WAFLimit `json:"limits"`
+	// CorazaZoneID is the project's Coraza (managed rules) zone ConfigMap name.
+	// Empty means the command came from an apiserver that predates managed
+	// rules — leave everything Coraza-related untouched (the RateLimitZoneID
+	// mixed-version pattern).
+	CorazaZoneID string `json:"corazaZoneId"`
+	// ManagedRules materializes into the Coraza zone ConfigMap; nil/disabled
+	// removes the ConfigMap and annotation so the engine drops the zone.
+	ManagedRules *WAFManagedRules `json:"managedRules"`
 }
 
 // DeployerCommandWAFDelete asks the location's deployer to remove the project's
-// WAF zone and ratelimit zone ConfigMaps and strip the waf-zone/ratelimit-zone
-// annotations from its Ingresses. Issued when waf_zones.action is Delete.
+// WAF zone, ratelimit zone, and Coraza zone ConfigMaps and strip the
+// waf-zone/ratelimit-zone/coraza-zone annotations from its Ingresses. Issued
+// when waf_zones.action is Delete.
 type DeployerCommandWAFDelete struct {
 	ID              int64  `json:"id"`
 	ProjectID       int64  `json:"projectId"`
 	ZoneID          string `json:"zoneId"`
 	RateLimitZoneID string `json:"rateLimitZoneId"`
+	// CorazaZoneID follows the same empty-means-untouched mixed-version guard
+	// as DeployerCommandWAFSet.CorazaZoneID.
+	CorazaZoneID string `json:"corazaZoneId"`
 }
 
 // DeployerCommandCacheSet asks the location's deployer to materialize the

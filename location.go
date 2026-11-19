@@ -65,7 +65,10 @@ func (m *LocationItem) Table() [][]string {
 type LocationFeatures struct {
 	WorkloadIdentity bool      `json:"workloadIdentity,omitempty" yaml:"workloadIdentity"`
 	Disk             *struct{} `json:"disk,omitempty" yaml:"disk"`
-	WAF              *struct{} `json:"waf,omitempty" yaml:"waf"`
+	// WAF gates the waf.* RPCs; non-nil = the location supports WAF zones.
+	// Stored/legacy "waf": {} unmarshals to the zero WAFLocationFeature
+	// (ManagedRules false), so widening from *struct{} is JSON-compatible.
+	WAF *WAFLocationFeature `json:"waf,omitempty" yaml:"waf"`
 	// Cache gates the edge cache-override feature (cache.* RPCs). It is EDGE-only
 	// and independent of WAF: enable it only for locations whose edge control
 	// plane runs CP_CACHE_ENABLED (the apiserver cannot verify edge readiness, so
@@ -79,6 +82,14 @@ type LocationFeatures struct {
 	// that the controller is watching transform ConfigMaps). Enabling it before
 	// the plugin is live makes a transform.set a silent bound-but-unconsumed no-op.
 	Transform *struct{} `json:"transform,omitempty" yaml:"transform"`
+}
+
+// WAFLocationFeature parameterizes the waf feature flag. ManagedRules is the
+// human contract that the location's parapet controller runs CORAZA_ENABLED
+// (the apiserver cannot verify engine readiness); enabling it before the
+// engine is live makes managedRules a silently bound-but-unconsumed no-op.
+type WAFLocationFeature struct {
+	ManagedRules bool `json:"managedRules,omitempty" yaml:"managedRules"`
 }
 
 type LocationGet struct {

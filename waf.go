@@ -228,6 +228,67 @@ func validWAFLimits(v *validator.Validator, limits []WAFLimit) {
 	}
 }
 
+// WAFManagedRules configures the zone's managed signature ruleset (OWASP Core
+// Rule Set, evaluated by the parapet Coraza engine after the zone's CEL rules
+// and before its rate limits). The platform generates the underlying SecLang
+// document from these fields; raw SecLang is never accepted.
+//
+// On WAFSet the field follows the zone's whole-replace semantics: nil clears
+// the whole block (disabled, tuning discarded); enabled:false disables
+// enforcement but keeps the tuning (paranoia/threshold/excludedRules) stored,
+// so a toggle-off during an incident doesn't destroy a curated exclusion list.
+// Always waf.get, edit, and re-set.
+type WAFManagedRules struct {
+	Enabled bool `json:"enabled" yaml:"enabled"`
+	// Mode: "" or "enforce" = anomaly-scored requests over the threshold are
+	// blocked (403); "detect" = SecRuleEngine DetectionOnly — rules evaluate
+	// and log but never block.
+	Mode string `json:"mode" yaml:"mode,omitempty"`
+	// ParanoiaLevel maps to tx.blocking_paranoia_level: 0 = default (1); 1..4.
+	// Higher levels enable stricter CRS rules with more false positives.
+	ParanoiaLevel int `json:"paranoiaLevel" yaml:"paranoiaLevel,omitempty"`
+	// AnomalyThreshold maps to tx.inbound_anomaly_score_threshold: 0 = default
+	// (5); 1..100. A request blocks when its summed anomaly score reaches the
+	// threshold (each critical match scores 5).
+	AnomalyThreshold int `json:"anomalyThreshold" yaml:"anomalyThreshold,omitempty"`
+	// ExcludedRules lists CRS rule ids to disable (SecRuleRemoveById), for
+	// false-positive relief. Only detection-rule ids are accepted
+	// (911100..948999); the CRS setup (900xxx) and scoring/evaluation
+	// machinery (949xxx+) cannot be excluded.
+	ExcludedRules []int `json:"excludedRules,omitempty" yaml:"excludedRules,omitempty"`
+}
+
+// validWAFManagedRules validates the structural contract of a managed-rules
+// block. The same checks apply whether Enabled is true or false: a disabled
+// block with tuning is valid and persisted, so toggling off (e.g. mid-incident)
+// never forces the tenant to rebuild a curated exclusion list on re-enable.
+func validWAFManagedRules(v *validator.Validator, m *WAFManagedRules) {
+	v.Must(m.Mode == "" || m.Mode == "enforce" || m.Mode == "detect", "managedRules: mode invalid (want enforce|detect)")
+	v.Must(m.ParanoiaLevel == 0 || (m.ParanoiaLevel >= 1 && m.ParanoiaLevel <= 4), "managedRules: paranoiaLevel out of range (want 1..4)")
+	v.Must(m.AnomalyThreshold == 0 || (m.AnomalyThreshold >= 1 && m.AnomalyThreshold <= 100), "managedRules: anomalyThreshold out of range (want 1..100)")
+
+	v.Mustf(len(m.ExcludedRules) <= WAFManagedMaxExcludedRules, "managedRules: excludedRules must not exceed %d rules", WAFManagedMaxExcludedRules)
+	seen := make(map[int]bool, len(m.ExcludedRules))
+	for _, id := range m.ExcludedRules {
+		v.Mustf(id >= WAFManagedExcludedRuleIDMin && id <= WAFManagedExcludedRuleIDMax, "managedRules: excluded rule %d out of range (want %d..%d)", id, WAFManagedExcludedRuleIDMin, WAFManagedExcludedRuleIDMax)
+		v.Mustf(!seen[id], "managedRules: excluded rule %d duplicated", id)
+		seen[id] = true
+	}
+}
+
+// crsColumn renders a managed-rules block for table output: "on" enabled,
+// "off" disabled with tuning kept, "-" never configured / cleared.
+func crsColumn(m *WAFManagedRules) string {
+	switch {
+	case m == nil:
+		return "-"
+	case m.Enabled:
+		return "on"
+	default:
+		return "off"
+	}
+}
+
 type WAFGet struct {
 	Project  string `json:"project" yaml:"project"`
 	Location string `json:"location" yaml:"location"`
@@ -242,15 +303,18 @@ func (m *WAFGet) Valid() error {
 	return WrapValidate(v)
 }
 
-// WAFSet upserts the project's zone, replacing the whole ruleset and limit
-// set. Mirrors parapet's all-or-nothing SetRules/SetLimits: one bad rule or
-// limit rejects the batch and the previous good set stays live.
+// WAFSet upserts the project's zone, replacing the whole ruleset, limit set,
+// and managed-rules block. Mirrors parapet's all-or-nothing SetRules/SetLimits:
+// one bad rule or limit rejects the batch and the previous good set stays live.
+// The whole-replace contract covers ManagedRules too: omitting the field
+// clears it (see WAFManagedRules) — always waf.get, edit, re-set.
 type WAFSet struct {
-	Project     string     `json:"project" yaml:"project"`
-	Location    string     `json:"location" yaml:"location"`
-	Description string     `json:"description" yaml:"description"`
-	Rules       []WAFRule  `json:"rules" yaml:"rules"`
-	Limits      []WAFLimit `json:"limits" yaml:"limits"`
+	Project      string           `json:"project" yaml:"project"`
+	Location     string           `json:"location" yaml:"location"`
+	Description  string           `json:"description" yaml:"description"`
+	Rules        []WAFRule        `json:"rules" yaml:"rules"`
+	Limits       []WAFLimit       `json:"limits" yaml:"limits"`
+	ManagedRules *WAFManagedRules `json:"managedRules" yaml:"managedRules,omitempty"`
 }
 
 func (m *WAFSet) Valid() error {
@@ -260,6 +324,9 @@ func (m *WAFSet) Valid() error {
 	v.Must(m.Location != "", "location required")
 	validWAFRules(v, m.Rules)
 	validWAFLimits(v, m.Limits)
+	if m.ManagedRules != nil {
+		validWAFManagedRules(v, m.ManagedRules)
+	}
 
 	return WrapValidate(v)
 }
@@ -297,13 +364,14 @@ type WAFListResult struct {
 
 func (m *WAFListResult) Table() [][]string {
 	table := [][]string{
-		{"LOCATION", "RULES", "LIMITS", "STATUS", "AGE"},
+		{"LOCATION", "RULES", "LIMITS", "CRS", "STATUS", "AGE"},
 	}
 	for _, x := range m.Items {
 		table = append(table, []string{
 			x.Location,
 			strconv.Itoa(len(x.Rules)),
 			strconv.Itoa(len(x.Limits)),
+			crsColumn(x.ManagedRules),
 			x.Status.Text(),
 			age(x.CreatedAt),
 		})
@@ -317,6 +385,12 @@ type WAFItem struct {
 	Description string     `json:"description" yaml:"description"`
 	Rules       []WAFRule  `json:"rules" yaml:"rules"`
 	Limits      []WAFLimit `json:"limits" yaml:"limits"`
+	// ManagedRules is nil (and omitted from JSON) when the block was never
+	// configured, was cleared by a Set that omitted it, or was set all-zero —
+	// the server normalizes the zero value to unset (spec §3.2), so managedRules:{}
+	// does not round-trip as "off". A disabled-but-tuned block round-trips
+	// through Get → edit → Set intact so re-enabling restores the tuning.
+	ManagedRules *WAFManagedRules `json:"managedRules,omitempty" yaml:"managedRules,omitempty"`
 	// Status and Action expose the materialization state: Status is Pending
 	// while the deployer is (un)applying the zone and Success once live; Action
 	// is Create (set) or Delete (tearing down). Both are read-only.
@@ -328,12 +402,13 @@ type WAFItem struct {
 
 func (m *WAFItem) Table() [][]string {
 	table := [][]string{
-		{"PROJECT", "LOCATION", "RULES", "LIMITS", "STATUS", "AGE"},
+		{"PROJECT", "LOCATION", "RULES", "LIMITS", "CRS", "STATUS", "AGE"},
 		{
 			m.Project,
 			m.Location,
 			strconv.Itoa(len(m.Rules)),
 			strconv.Itoa(len(m.Limits)),
+			crsColumn(m.ManagedRules),
 			m.Status.Text(),
 			age(m.CreatedAt),
 		},
