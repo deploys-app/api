@@ -31,6 +31,14 @@ type Billing interface {
 	// is part of reading the bill, and does not require membership in those
 	// projects. A caller who is not a member gets ErrBillingAccountNotFound.
 	ListProjects(ctx context.Context, m *BillingProjectList) (*BillingProjectListResult, error)
+	// UnlinkProject detaches a project from a billing account and pauses the
+	// project's workloads and scheduled jobs. They stay paused until a project
+	// owner attaches a new billing account and resumes each resource; attaching
+	// an account does not resume anything. Owner or admin of the billing
+	// account only. A non-member gets ErrBillingAccountNotFound. An accountant
+	// gets ErrBillingForbidden. The project must currently be attached to this
+	// account and not soft-deleted.
+	UnlinkProject(ctx context.Context, m *BillingUnlinkProject) (*Empty, error)
 	// SKUs requires no authentication (public static price list).
 	SKUs(ctx context.Context, m *Empty) (*BillingSKUs, error)
 	// Project requires the `project.get` permission.
@@ -305,6 +313,22 @@ type BillingProjectListItem struct {
 
 type BillingProjectListResult struct {
 	Items []*BillingProjectListItem `json:"items" yaml:"items"`
+}
+
+// BillingUnlinkProject detaches one project from a billing account.
+// ID is the billing account id. Project is the project's sid.
+type BillingUnlinkProject struct {
+	ID      int64  `json:"id,string" yaml:"id"`
+	Project string `json:"project" yaml:"project"`
+}
+
+func (m *BillingUnlinkProject) Valid() error {
+	v := validator.New()
+
+	v.Must(m.ID > 0, "id required")
+	v.Must(m.Project != "", "project required")
+
+	return WrapValidate(v)
 }
 
 type InvoiceList struct {
